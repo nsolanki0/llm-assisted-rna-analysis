@@ -1,9 +1,9 @@
 # LLM-Assisted RNA Analysis
 
-A collection of R Markdown workflows and task-oriented examples for bulk and sc-RNA seq data analysis, intended to support the development and evaluation of LLM-assisted scientific data analysis and visualization.
+A collection of R Markdown workflows and task-oriented examples for bulk RNA-seq and single-cell RNA-seq data analysis, intended to support the development and evaluation of LLM-assisted scientific data analysis and visualization.
 
 ## Overview
-This repository contains a collection of R Markdown (.Rmd) files covering a range of common tasks and workflows in bulk and single-celled RNA seq data analysis.
+This repository contains a collection of R Markdown (.Rmd) files covering a range of tasks and workflows in RNA-seq, single-cell RNA-seq, and related computational biology and data analysis.
 
 The examples include:
 
@@ -47,13 +47,15 @@ For example:
 ### Task ...
 
 prompt:
-...
+I have a gene expression vector 'x'.
+I want to calculate the mean and median of this vector.
 
 completion:
-...
+To calculate the mean and median, use `mean()` and `median()`.
 
 ```{r,eval=FALSE}
-...
+mean(x)
+median(x)
 ```
 
 --- TASK END
@@ -62,21 +64,15 @@ The tasks vary in size and complexity. Some address a single operation, while ot
 
 ## Purpose
 
-The workflows were assembled from a combination of:
+The workflows draw on a combination of textbooks and educational materials, package and software documentation, publicly available examples, published workflows, and publicly available biological datasets.
 
-- Textbooks and educational materials
-- Package and software documentation
-- Publicly available examples
-- Publicly available biological datasets
-- Existing analysis workflows
-
-The task prompts and explanatory/completion text were developed as part of the construction of this collection.
+The task prompts and explanatory/completion text were developed as part of the construction of this collection. The R code may include original code as well as code adapted from, or based on, publicly available examples, documentation, workflows, and other source materials.
 
 The repository is intended to provide a structured collection of realistic biological data-analysis problems and corresponding R-based solutions that can potentially be used for LLM-assisted analysis, benchmarking, evaluation, or further development.
 
 ## Data, software, and third-party material
 
-Many workflows use established R/Bioconductor packages, annotation resources, published datasets, and other publicly available resources.
+Many workflows make use of, or are based in part on, established R/Bioconductor packages, package documentation and examples, annotation resources, published datasets, published workflows, and other publicly available materials.
 
 Examples may include resources such as:
 
@@ -89,6 +85,8 @@ Examples may include resources such as:
 These resources are **not owned by this repository** and may have their own licenses, terms of use, attribution requirements, or citation requirements.
 
 Where appropriate, the relevant packages, datasets, references, and external resources should be consulted for their original licensing and citation information.
+
+Where a workflow incorporates or adapts material from a specific external source, the source and applicable license or attribution requirements should be retained or documented where appropriate.
 
 ## Reproducibility
 
@@ -110,6 +108,6 @@ The initial version preserves the original R Markdown workflows as individual fi
 
 ## License
 
-See the [`LICENSE`](LICENSE) file for the license applicable to the original material in this repository.
+Unless otherwise stated, original code and other original material contributed to this repository are released under the MIT License. See the  [`LICENSE`](LICENSE) file for the license text.
 
-Third-party datasets, software, examples, and other external resources remain subject to their respective licenses and terms of use.
+Some workflows incorporate or adapt code, examples, datasets, documentation, or other materials from third-party sources. Such material is not necessarily covered by the MIT License and remains subject to the applicable license, copyright, attribution, and usage requirements of its original source.
