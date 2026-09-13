@@ -3,7 +3,9 @@
 A collection of R Markdown workflows and task-oriented examples for bulk RNA-seq, single-cell RNA-seq, and related computational biology analyses, intended to support the development and evaluation of LLM-assisted scientific data analysis and visualization.
 
 ## Overview
-This repository contains R Markdown (.Rmd) workflows covering a range of tasks in RNA-seq, single-cell RNA-seq, and related computational biology and data analysis.
+This repository contains R Markdown (.Rmd) workflows developed and assembled during a four-month internship at Max Delbrück Center-BIMSB, covering a range of tasks in RNA-seq, single-cell RNA-seq, and related computational biology and data analysis.
+
+The work contributed to the initial development and evaluation of an LLM-assisted approach to RNA-seq data analysis, with a focus on analysis templates, task-oriented prompts, and test cases.
 
 The examples include:
 
@@ -17,7 +19,7 @@ The examples include:
 - Feature selection
 - Cell-type annotation and reference-based analysis
 
-The repository consists primarily of workflow-oriented R Markdown files. Each workflow can contain multiple tasks, ranging from small, focused operations to complete analysis workflows.
+The repository consists primarily of workflow-oriented R Markdown files, with each workflow containing multiple tasks ranging from small, focused operations to complete analysis workflows.
 
 ## Repository structure
 
@@ -66,7 +68,18 @@ The workflows were assembled from a combination of textbooks and educational mat
 
 The task prompts and explanatory/completion text were written by the repository author as part of the construction of this collection. The R code may include original code as well as code adapted from, or based on, publicly available examples, documentation, workflows, and other source materials.
 
-The repository provides a structured collection of realistic biological data-analysis problems and corresponding R-based solutions that can be used for LLM-assisted analysis, benchmarking, evaluation, and related research.
+The repository provides a structured collection of realistic biological data-analysis problems and corresponding R-based solutions for LLM-assisted analysis, benchmarking, evaluation, and related research.
+
+## My contribution
+
+My contribution focused on the initial development and evaluation of the LLM-assisted analysis framework. This included:
+
+- Developing and structuring analysis templates for bulk and single-cell RNA-seq workflows
+- Developing task-oriented prompts for biological data-analysis tasks
+- Constructing computational test cases for evaluating the analysis approach
+- Preparing and adapting R-based examples for a range of biological data-analysis tasks
+
+I was involved in the initial stage of the project and was not responsible for training the underlying language model.
 
 ## Data, software, and third-party material
 
@@ -100,7 +113,7 @@ The workflows should therefore be regarded as reproducible examples rather than 
 
 This repository is under development.
 
-The current version preserves the R Markdown workflows as individual files. Further organization, documentation, metadata, and automated extraction of individual tasks may be added as the project develops.
+The current version preserves the R Markdown workflows as individual files. Further organization and documentation may be added as the project develops.
 
 ## License
 
