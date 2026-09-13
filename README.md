@@ -57,8 +57,6 @@ To calculate the mean and median, use `mean()` and `median()`.
 mean(x)
 median(x)
 ```
---- TASK END
-```
 
 Tasks vary in size and complexity. Some address a single operation, while others combine multiple analysis steps into a larger workflow.
 
