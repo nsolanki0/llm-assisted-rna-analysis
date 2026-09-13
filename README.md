@@ -104,7 +104,7 @@ The workflows should therefore be regarded as reproducible examples rather than 
 
 This repository is under development.
 
-The initial version preserves the original R Markdown workflows as individual files. Further organization, documentation, metadata, and automated extraction of individual tasks may be added as the project develops.
+The initial version preserves the R Markdown workflows as individual files. Further organization, documentation, metadata, and automated extraction of individual tasks may be added as the project develops.
 
 ## License
 
