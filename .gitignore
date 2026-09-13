@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# Log files
+*.log
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
