@@ -5,7 +5,7 @@ A collection of R Markdown workflows and task-oriented examples for bulk RNA-seq
 ## Overview
 This repository contains R Markdown (.Rmd) workflows developed and assembled during a four-month internship at Max Delbrück Center-BIMSB, covering a range of tasks in RNA-seq, single-cell RNA-seq, and related computational biology and data analysis.
 
-The work contributed to the initial development and evaluation of an LLM-assisted approach to RNA-seq data analysis, with a focus on analysis templates, task-oriented prompts, and test cases.
+The work contributed to the initial development and evaluation of an LLM-assisted analysis framework for RNA-seq and related computational biology tasks.”
 
 The examples include:
 
@@ -72,7 +72,7 @@ The repository provides a structured collection of realistic biological data-ana
 
 ## My contribution
 
-My contribution focused on the initial development and evaluation of the LLM-assisted analysis framework. This included:
+My contribution focused on developing and evaluating components of the LLM-assisted analysis framework, with particular emphasis on analysis templates, task-oriented prompts, computational test cases, and R-based examples. This included:
 
 - Developing and structuring analysis templates for bulk and single-cell RNA-seq workflows
 - Developing task-oriented prompts for biological data-analysis tasks
