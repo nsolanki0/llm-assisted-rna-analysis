@@ -1,0 +1,329 @@
+---
+title: "prompt/completion pairs chapter 7"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to plot the sequence quality per cycle. 
+How do I do this?
+
+completion:
+To plot the sequence quality per cycle, you first need to read
+in the data. this can be done using the `rqc` function. Then,
+you can make use of the`rqcCycleQualityBoxPlot` function from the `Rqc` 
+library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(Rqc)
+
+# read in data
+qcRes <- rqc(pattern = "ERR127302_1_subset.fastq.gz", openBrowser = FALSE)
+
+# plot quality per cycle. 
+rqcCycleQualityBoxPlot(qcRes)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to visualize the nucleotide proportions for each position.
+How do I do this?
+
+completion:
+To plot the nucleotide proportions for each position,
+you first need to read in the data. This can be done using
+the `rqc` function from the `Rqc` library. Then, the function
+`rqcCycleBaseCallsLinePlot` can be used to plot the 
+nucleotide proportion per position. 
+
+```{r,eval=FALSE}
+require(Rqc)
+
+# read in data
+qcRes <- rqc(pattern = "ERR127302_1_subset.fastq.gz", openBrowser = FALSE)
+
+# plot nucleotide proportion per position
+rqcCycleBaseCallsLinePlot(qcRes)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz" and
+another called "ERR127302_2_subset.fastq.gz". 
+which hold sequencing reads information and are in fastq format.
+I want to plot the read frequency plot. How do I do this?
+
+completion:
+To plot the read frequency plot you first need to read in the data. 
+This can be done using the `rqc` function from the `Rqc` library.
+Since both files contain "ERR127302_" we can use this as the pattern
+for reading in both files simultaneously. To then plot the read 
+frequency, you can make use of the `rqcReadFrequencyPlot`
+function. 
+
+
+```{r,eval=FALSE}
+
+# read in data
+qcRes <- rqc(pattern = "ERR127302_", openBrowser = FALSE)
+
+# plot read frequency plot
+rqcReadFrequencyPlot(qcRes)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz" and
+another called "ERR127302_2_subset.fastq.gz". 
+which hold sequencing reads information and are in fastq format.
+I want some general QC reports to check the quality of my 
+reads. I want to save these statistics in a new directory called 
+"fastqc_results". I then also want to look at a preview of this. 
+How do I do this?
+
+completion:
+The most popular tool for sequencing quality control is the fastQC tool, 
+which is written in Java. It produces several quality plots and statistics.
+The R package fastqcr can run this Java tool and produce R-based plots and reports. 
+This package simply calls the Java tool and parses its results. 
+Below, we show how to do that.
+
+```{r,eval=FALSE}
+require(fastqcr)
+
+# install the FASTQC java tool
+fastqc_install()
+
+# call FASTQC on all files in directory 
+# and record the resulting statistics
+# in fastqc_results folder
+fastqc(fq.dir = ".",qc.dir = "fastqc_results")
+
+# view the report rendered by R functions
+qc_report(qc.path="fastqc_results", 
+          result.file="reportFile", preview = TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove reads which have more then 1 unidentified base, and 
+save the results to a new file called "processed.fastq" also in 
+fastq format. How do I do this?
+
+completion:
+To remove reads which have more then 1 base in a fastq file,
+you can make use of the `QuasR` library in R. 
+Using the function `preprocessReads` and setting the
+argument nBases=1, all reads which have more then 1 unidentified 
+base will be filtered out. 
+
+```{r,eval=FALSE}
+require(QuasR)
+
+preprocessReads("ERR127302_1_subset.fastq.gz", "processed.fastq", 
+                nBases=1)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove 3 bases from each read at the end and 
+save the results in a fastq file called "processed.fastq". 
+How do I do this?
+
+completion:
+To remove 3 bases at the end from each read, you can make use of the
+`QuasR` library in R. Using the function `preprocessReads` and
+setting the argument `truncateEndBases=3` will ensure
+3 bases are trimmed of the end of each read. 
+
+```{r,eval=FALSE}
+require(QuasR)
+
+preprocessReads("ERR127302_1_subset.fastq.gz", "processed.fastq", 
+                truncateEndBases=3)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove reads which are shorter then 40 basepairs and 
+save the results in a fastq file called "processed.fastq". 
+How do I do this?
+
+completion:
+To remove reads which are shorter then 40 basepairs, and 
+save the results in a file called "processed.fastq", you can
+make use of the `QuasR` library in R. Using the function `preprocessReads` 
+and setting the argument `minLength=40` will ensure that reads shorter then
+40 basepairs will be removed. 
+
+```{r,eval=FALSE}
+require(QuasR)
+
+preprocessReads("ERR127302_1_subset.fastq.gz", "processed.fastq", 
+                minLength=40)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove the ACCCGGGA patern if it occurs at the start
+of a read. How do I do this?
+
+completion:
+To remove a specific pattern, such as "ACCCGGGA", if it occurs at the start of
+each read in a FASTQ file you can make use of the `QuasR` library in R. 
+Using the function `preprocessReads` and setting the argument `Lpattern="ACCCGGGA"`
+will remove this pattern at the start of each read. 
+
+```{r,eval=FALSE}
+preprocessReads("ERR127302_1_subset.fastq.gz", "processed.fastq", 
+                Lpattern="ACCCGGGA")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove the ACCCGGGA patern if it occurs at the end
+of a read. How do I do this?
+
+completion:
+To remove a specific pattern, such as "ACCCGGGA", if it occurs at the end of
+each read in a FASTQ file you can make use of the `QuasR` library in R. 
+Using the function `preprocessReads` and setting the argument `Rpattern="ACCCGGGA"`
+will remove this pattern at the end of each read. 
+
+```{r,eval=FALSE}
+preprocessReads("ERR127302_1_subset.fastq.gz", "processed.fastq", 
+                Rpattern="ACCCGGGA")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to remove reads which have a quality score below 20, and
+save the results in a fastq file called "Qfiltered.fastq".
+How do I do this?
+
+completion:
+To filter and remove reads with a quality score below 20 from a 
+FASTQ file and save the filtered reads in a new FASTQ file, you can use
+the `ShortRead` library in R. reading in the FASTQ file is done using the
+`readFastq` function. To get the quality scores, you can make use of the 
+`quality`function. You can then filter for bases which have reads with 
+a quality score below 20, and write the results to a new FASTQ file 
+using the `writeFastq` function. 
+
+```{r,eval=FALSE}
+require(ShortRead)
+
+# read fastq file
+fq <- readFastq("ERR127302_1_subset.fastq.gz")
+
+# get quality scores per base as a matrix
+qPerBase <- as(quality(fq), "matrix")
+
+# get counts of bases per read that have quality score below 20
+qcount <- rowSums( qPerBase < 20) 
+
+# Reads where all scores >= 20
+reads_filtered <- fq[qcount == 0]
+
+# write to fastq file
+writeFastq(reads_filtered, 
+           "Qfiltered.fastq")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "ERR127302_1_subset.fastq.gz"
+which holds sequencing reads information and is in fastq format.
+I want to align these reads to the human genome. How do I do this?
+
+completion:
+To align reads in a FASTQ file to the human genome, you can 
+make use of the QuasR library. The function qAlign can be
+used to make an alignment. 
+This function is designed to be easy. For example, it creates a 
+genome index automatically if it does not exist, and will look for 
+existing indices before it creates one. We provided only two arguments, 
+a text file containing sample names and fastq file paths and a reference 
+genome file. In fact, this function also has many knobs and you can change 
+its behavior by supplying different arguments in order to affect the behavior 
+of Bowtie. For example, you can supply parameters to Bowtie using the 
+alignmentParameter argument. However the qAlign() function is optimized for 
+different types of alignment problems and selects alignment parameters 
+automatically. It is designed to work with alignment and quantification 
+tasks for RNA-seq, ChIP-seq, small-RNA sequencing, 
+Bisulfite sequencing (DNA methylation) and allele-specific analysis. 
+If you want to change the default bowtie parameters, only do it for 
+simple alignment problems such as ChIP-seq and RNA-seq.
+
+```{r,eval=FALSE}
+library(ShortRead)
+library(BSgenome.Hsapiens.UCSC.hg19)
+
+# prepare txt file for alignment function
+tbl <- data.frame (FileName = "ERR127302_1_subset.fastq.gz", SampleName = "sample1")
+write.table(tbl, "inputs.txt",sep="\t")
+
+# get alignment
+alignment_res <- qAlign("inputs.txt", "BSgenome.Hsapiens.UCSC.hg19")
+
+```
+
+--- TASK END

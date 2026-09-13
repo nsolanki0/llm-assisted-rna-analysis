@@ -1,0 +1,2163 @@
+---
+title: "prompt/completion pairs single-cell_basic_chapter 5"
+author: "authors"
+date: "2024-01-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to get the cluster assignment of each cell in lower dimensional space.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. It returns a 
+vector containing cluster assignments for each cell in the SingleCellExperiment 
+object.
+By default, clusterCells() uses the 10 nearest neighbors of each cell to 
+construct a shared nearest neighbor graph. Two cells are connected by an edge 
+if any of their nearest neighbors are shared, with the edge weight defined from 
+the highest average rank of the shared neighbors. The Walktrap method from the 
+igraph package is then used to identify communities.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+nn.clusters <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+# check cluster assignments
+table(nn.clusters)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to get the cluster assignment of each cell in lower dimensional space and
+visualize the distribution of clusters in a t-SNE plot.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. It returns a 
+vector containing cluster assignments for each cell in the SingleCellExperiment 
+object. We then assign the cluster assignments back into our 
+SingleCellExperiment object as a factor in the column metadata. This allows us 
+to conveniently visualize the distribution of clusters in a t-SNE plot using
+plotReducedDim() function from scater package. In the demo plot, each point 
+represents a cell and is coloured according to the identity of the assigned 
+cluster from graph-based clustering.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+nn.clusters <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+# check cluster assignments
+table(nn.clusters)
+
+library(scater)
+# cluster assignments into sce object
+colLabels(sce.pbmc) <- nn.clusters
+
+# visualization of clusters 
+plotReducedDim(sce.pbmc, "TSNE", colour_by="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. Using 
+the lower dimension information I would like to create a graph.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. The graph can 
+be obtained by specifying full=TRUE in the clusterCells() call. Doing so will 
+return all intermediate structures that are used during clustering, including 
+a graph object from the igraph package.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# store a graph
+nn.clust.info <- clusterCells(sce.pbmc, use.dimred="PCA", full=TRUE)
+
+# output graph
+nn.clust.info$objects$graph
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. Using 
+the lower dimension information I would like to create and visualize a graph.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. The graph can 
+be obtained by specifying full=TRUE in the clusterCells() call. Doing so will 
+return all intermediate structures that are used during clustering, including 
+a graph object from the igraph package. This graph can be visualized using a 
+force-directed layout, closely related to t-SNE and UMAP. The cells are labeled
+as per their cluster assignments.
+As mentioned earlier cluster assignments can be obtained with clusterCells() 
+function, which returns a vector containing cluster assignments for each cell 
+in the SingleCellExperiment object. We then assign the cluster assignments back 
+into our SingleCellExperiment object as a factor in the column metadata. This 
+allows us to visualize the distribution of clusters in a plot using
+plotReducedDim() function from scater package. The demo plot is the 
+force-directed layout for the shared nearest-neighbor graph of the PBMC dataset. 
+Each point represents a cell and is coloured according to its assigned cluster 
+identity.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+nn.clusters <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+# check cluster assignments
+table(nn.clusters)
+
+library(scater)
+# cluster assignments into sce object
+colLabels(sce.pbmc) <- nn.clusters
+
+library(scran)
+# store a graph
+nn.clust.info <- clusterCells(sce.pbmc, use.dimred="PCA", full=TRUE)
+
+# output graph
+nn.clust.info$objects$graph
+
+# set seed
+set.seed(11000)
+
+# store graph object
+reducedDim(sce.pbmc, "force") <- igraph::layout_with_fr(nn.clust.info$objects$graph)
+
+library(scater)
+# nearest-neighbor graph visualization
+plotReducedDim(sce.pbmc, colour_by="label", dimred="force")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to get the cluster assignment of each cell in lower dimensional space.
+Moreover, what are the different parameters I could use for my clustering?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. It returns a 
+vector containing cluster assignments for each cell in the SingleCellExperiment 
+object.
+By default, clusterCells() uses the 10 nearest neighbors of each cell to 
+construct a shared nearest neighbor graph. Two cells are connected by an edge 
+if any of their nearest neighbors are shared, with the edge weight defined from 
+the highest average rank of the shared neighbors. The Walktrap method from the 
+igraph package is then used to identify communities.
+If we wanted to explicitly specify all of these parameters, we would use the 
+more verbose call below. This uses a SNNGraphParam object from the bluster 
+package to instruct clusterCells() to detect communities from a shared 
+nearest-neighbor graph with the specified parameters. The appeal of this 
+interface is that it allows us to easily switch to a different clustering 
+algorithm by simply changing the BLUSPARAM= argument.
+One of the most important parameters is k, the number of nearest neighbors used 
+to construct the graph. This controls the resolution of the clustering where 
+higher k yields a more inter-connected graph and broader clusters. Users can 
+exploit this by experimenting with different values of k to obtain a 
+satisfactory resolution.
+Further tweaking can be performed by changing the edge weighting scheme during 
+graph construction. Setting type="number" will weight edges based on the number 
+of nearest neighbors that are shared between two cells. Similarly, 
+type="jaccard" will weight edges according to the Jaccard index of the two sets 
+of neighbors. We can also disable weighting altogether by using a simple 
+k-nearest neighbor graph, which is occasionally useful for downstream graph 
+operations that do not support weights.
+The community detection can be performed by using any of the algorithms 
+provided by igraph, such as Walktrap, but many others are available to choose 
+from.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+nn.clusters <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+# check cluster assignments
+table(nn.clusters)
+
+### parameter: number of neighbours
+
+library(bluster)
+# more resolved
+clust.5 <- clusterCells(sce.pbmc, use.dimred="PCA", BLUSPARAM=NNGraphParam(k=5))
+table(clust.5)
+
+# less resolved
+clust.50 <- clusterCells(sce.pbmc, use.dimred="PCA", BLUSPARAM=NNGraphParam(k=50))
+table(clust.50)
+
+### parameter: edges weight
+clust.num <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(type="number"))
+table(clust.num)
+
+clust.jaccard <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(type="jaccard"))
+table(clust.jaccard)
+
+clust.none <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KNNGraphParam())
+table(clust.none)
+
+### parameter: community detection
+clust.walktrap <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="walktrap"))
+
+clust.louvain <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="louvain"))
+
+clust.infomap <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="infomap"))
+
+clust.fast <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="fast_greedy"))
+
+clust.labprop <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="label_prop"))
+
+clust.eigen <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="leading_eigen"))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to get the cluster assignment of each cell in lower dimensional space.
+Moreover, I would like to use different parameters for my clustering and 
+compare the different clustering strategies.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. The cluster assignment of each cell in lower dimensional space 
+can be obtained with clusterCells() function from scran package. It returns a 
+vector containing cluster assignments for each cell in the SingleCellExperiment 
+object.
+By default, clusterCells() uses the 10 nearest neighbors of each cell to 
+construct a shared nearest neighbor graph. Two cells are connected by an edge 
+if any of their nearest neighbors are shared, with the edge weight defined from 
+the highest average rank of the shared neighbors. The Walktrap method from the 
+igraph package is then used to identify communities.
+If we wanted to explicitly specify all of these parameters, we would use the 
+more verbose call below. This uses a SNNGraphParam object from the bluster 
+package to instruct clusterCells() to detect communities from a shared 
+nearest-neighbor graph with the specified parameters. The appeal of this 
+interface is that it allows us to easily switch to a different clustering 
+algorithm by simply changing the BLUSPARAM= argument.
+One of the most important parameters is k, the number of nearest neighbors used 
+to construct the graph. This controls the resolution of the clustering where 
+higher k yields a more inter-connected graph and broader clusters. Users can 
+exploit this by experimenting with different values of k to obtain a 
+satisfactory resolution.
+Further tweaking can be performed by changing the edge weighting scheme during 
+graph construction. Setting type="number" will weight edges based on the number 
+of nearest neighbors that are shared between two cells. Similarly, 
+type="jaccard" will weight edges according to the Jaccard index of the two sets 
+of neighbors. We can also disable weighting altogether by using a simple 
+k-nearest neighbor graph, which is occasionally useful for downstream graph 
+operations that do not support weights.
+The community detection can be performed by using any of the algorithms 
+provided by igraph, such as Walktrap, but many others are available to choose 
+from.
+Two clustering strategies can be compared with the help of heatmap plots by 
+using heatmap() function from heatmap package. The demo example suggests that 
+Infomap yields finer clusters than Walktrap while fast-greedy yields coarser 
+clusters. In the plot each entry of each heatmap represents a pair of labels, 
+coloured proportionally to the log-number of cells with those labels.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+nn.clusters <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+# check cluster assignments
+table(nn.clusters)
+
+### parameter: number of neighbours
+
+library(bluster)
+# more resolved
+clust.5 <- clusterCells(sce.pbmc, use.dimred="PCA", BLUSPARAM=NNGraphParam(k=5))
+table(clust.5)
+
+# less resolved
+clust.50 <- clusterCells(sce.pbmc, use.dimred="PCA", BLUSPARAM=NNGraphParam(k=50))
+table(clust.50)
+
+### parameter: edges weight
+clust.num <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(type="number"))
+table(clust.num)
+
+clust.jaccard <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(type="jaccard"))
+table(clust.jaccard)
+
+clust.none <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KNNGraphParam())
+table(clust.none)
+
+### parameter: community detection
+clust.walktrap <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="walktrap"))
+
+clust.louvain <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="louvain"))
+
+clust.infomap <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="infomap"))
+
+clust.fast <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="fast_greedy"))
+
+clust.labprop <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="label_prop"))
+
+clust.eigen <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=NNGraphParam(cluster.fun="leading_eigen"))
+
+library(pheatmap)
+
+# Using a large pseudo-count for a smoother color transition
+# between 0 and 1 cell in each 'tab'.
+tab <- table(paste("Infomap", clust.infomap), 
+    paste("Walktrap", clust.walktrap))
+ivw <- pheatmap(log10(tab+10), main="Infomap vs Walktrap",
+    color=viridis::viridis(100), silent=TRUE)
+
+tab <- table(paste("Fast", clust.fast), 
+    paste("Walktrap", clust.walktrap))
+fvw <- pheatmap(log10(tab+10), main="Fast-greedy vs Walktrap",
+    color=viridis::viridis(100), silent=TRUE)
+
+gridExtra::grid.arrange(ivw[[4]], fvw[[4]])
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform k-means clustering on my data. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+To perform k-means clustering with the specified number of clusters in centers=, 
+we supply a KmeansParam object in clusterCells(). We again use our top PCs after 
+setting the random seed to ensure that the results are reproducible. 
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# set seed
+set.seed(100)
+
+# get k-mean clusters
+clust.kmeans <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KmeansParam(centers=10))
+
+# check clusters
+table(clust.kmeans)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform k-means clustering on my data and visualize the clusters. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+To perform k-means clustering with the specified number of clusters in centers=, 
+we supply a KmeansParam object in clusterCells(). We again use our top PCs after 
+setting the random seed to ensure that the results are reproducible. 
+We then assign the cluster assignments back into our SingleCellExperiment object 
+as a factor in the column metadata. This allows us to conveniently visualize the 
+distribution of clusters in a t-SNE plot using plotReducedDim() function from 
+scater package. In the demo t-SNE plot of the 10X PBMC dataset, each point 
+represents a cell and is coloured according to the identity of the assigned 
+cluster from k-mean clustering.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# set seed
+set.seed(100)
+
+# get k-mean clusters
+clust.kmeans <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KmeansParam(centers=10))
+
+# check clusters
+table(clust.kmeans)
+
+library(scater)
+# cluster assignments into sce object
+colLabels(sce.pbmc) <- clust.kmeans
+
+# visualization of clusters 
+plotReducedDim(sce.pbmc, "TSNE", colour_by="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform clustering on my data using a method that gives me large number 
+of clusters.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+A more practical use of k-means is to deliberately set k to a large value to 
+achieve overclustering. This will forcibly partition cells inside broad clusters 
+that do not have well-defined internal structure. For example, we might be 
+interested in the change in expression from one “side” of a cluster to the 
+other, but the lack of any clear separation within the cluster makes it 
+difficult to separate with graph-based methods, even at the highest resolution.
+k-means has no such problems and will readily split these broad clusters for 
+greater resolution.
+To perform k-means clustering with the specified number of clusters in centers=, 
+we supply a KmeansParam object in clusterCells(). We again use our top PCs after 
+setting the random seed to ensure that the results are reproducible. 
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# set seed
+set.seed(100)
+
+# get k-mean clusters
+clust.kmeans2 <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KmeansParam(centers=20))
+
+# check clusters
+table(clust.kmeans2)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform clustering on my data using a method that gives me large number 
+of clusters and visualize the clusters as well.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+A more practical use of k-means is to deliberately set k to a large value to 
+achieve overclustering. This will forcibly partition cells inside broad clusters 
+that do not have well-defined internal structure. For example, we might be 
+interested in the change in expression from one “side” of a cluster to the 
+other, but the lack of any clear separation within the cluster makes it 
+difficult to separate with graph-based methods, even at the highest resolution.
+k-means has no such problems and will readily split these broad clusters for 
+greater resolution.
+To perform k-means clustering with the specified number of clusters in centers=, 
+we supply a KmeansParam object in clusterCells(). We again use our top PCs after 
+setting the random seed to ensure that the results are reproducible. 
+For convenience of visualizing the distribution of clusters we can assign the 
+cluster assignments back into our SingleCellExperiment object as a factor in the 
+column metadata. Visualization of t-SNE plot can be done using plotReducedDim() 
+function from scater package. In the demo t-SNE plot of the 10X PBMC dataset, 
+each point represents a cell and is coloured according to the identity of the 
+assigned cluster from k-mean clustering with k=20.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# set seed
+set.seed(100)
+
+# get k-mean clusters
+clust.kmeans2 <- clusterCells(sce.pbmc, use.dimred="PCA", 
+    BLUSPARAM=KmeansParam(centers=20))
+
+# check clusters
+table(clust.kmeans2)
+
+library(scater)
+# cluster assignments into sce object
+colLabels(sce.pbmc) <- clust.kmeans2
+
+# visualization of clusters 
+plotTSNE(sce.pbmc, colour_by="label", text_by="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. What 
+approach can I follow to cluster my large dataset using k-means clustering 
+method?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+To perform k-means clustering with the specified number of clusters in centers=, 
+we supply a KmeansParam object in clusterCells(). We again use our top PCs after 
+setting the random seed to ensure that the results are reproducible. 
+For larger datasets, we can use a variant of this approach named mini-batch 
+k-means from the mbkmeans package. At each iteration, we only update the cluster 
+assignments and centroid positions for a small subset of the observations. This 
+reduces memory usage and computational time - especially when not all of the 
+observations are informative for convergence - and supports parallelization via 
+BiocParallel. Using this variant is as simple as switching to a MbkmeansParam() 
+object in our clusterCells() call.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# set seed
+set.seed(100)
+
+library(mbkmeans)
+# get k-mean clusters
+clust.mbkmeans <- clusterCells(sce.pbmc, use.dimred="PCA",
+    BLUSPARAM=bluster::MbkmeansParam(centers=10))
+
+# check clusters
+table(clust.mbkmeans)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform combined k-means/graph-based clustering on my data and visualize 
+the clusters.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+k-means clustering is a classic vector quantization technique that divides cells 
+into k clusters. Each cell is assigned to the cluster with the closest centroid, 
+which is done by minimizing the within-cluster sum of squares using a random 
+starting configuration for the k centroids. We usually set k to a large value 
+such as the square root of the number of cells to obtain fine-grained clusters. 
+These are not meant to be interpreted directly, but rather, the centroids are 
+used in downstream steps for faster computation. The main advantage of this 
+approach lies in its speed, given the simplicity and ease of implementation of 
+the algorithm.
+By itself, k-means suffers from several shortcomings that reduce its appeal for 
+obtaining interpretable clusters.
+These concerns however are less relevant when k-means is being used for vector 
+quantization. In this application, k-means is used as a prelude to more 
+sophisticated and interpretable - but computationally expensive - clustering 
+algorithms. The clusterCells() function supports a “two-step” mode where k-means 
+is initially used to obtain representative centroids that are subjected to 
+graph-based clustering. Each cell is then placed in the same graph-based cluster 
+that its k-means centroid was assigned to.
+To perform the combined clustering with the specified number of clusters in 
+centers=, and number of neighbours in graph construction in k=, we supply a
+KmeansParam object and a NNGraphParam object respectively in clusterCells().
+We again use our top PCs after setting the random seed to ensure that the 
+results are reproducible. 
+The obvious benefit of this approach over direct graph-based clustering is the 
+speed improvement. We avoid the need to identifying nearest neighbors for each 
+cell and the construction of a large intermediate graph, while benefiting from 
+the relative interpretability of graph-based clusters compared to those from 
+k-means. This approach also mitigates the “inflation” effect. Each centroid 
+serves as a representative of a region of space that is roughly similar in 
+volume, ameliorating differences in cell density that can cause (potentially 
+undesirable) differences in resolution.
+The choice of the number of k-means clusters determines the trade-off between 
+speed and fidelity. Larger values provide a more faithful representation of the 
+underlying distribution of cells, at the cost of requiring more computational 
+work by the second-step clustering procedure. Note that the second step operates 
+on the centroids, so increasing clusters= may have further implications if the 
+second-stage procedure is sensitive to the total number of input observations. 
+For example, increasing the number of centroids would require an concomitant 
+increase in k= (the number of neighbors in graph construction) to maintain the 
+same level of resolution in the final output
+The clusters can be visualize using plotTSNE() function from scater package. 
+In the demo t-SNE plot of the 10X PBMC dataset, each point represents a cell 
+and is coloured according to the identity of the assigned cluster from combined 
+k-mean/graph-based clustering.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# setting the seed due to the randomness of k-means
+set.seed(0101010)
+
+library(bluster)
+# get combined k-means and graph-based clusters
+kgraph.clusters <- clusterCells(sce.pbmc, use.dimred="PCA",
+    BLUSPARAM=TwoStepParam(
+        first=KmeansParam(centers=1000),
+        second=NNGraphParam(k=5)
+    )
+)
+
+# check clusters
+table(kgraph.clusters)
+
+library(scater)
+# visualization of clusters 
+plotTSNE(sce.pbmc, colour_by=I(kgraph.clusters))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform hierarchical clustering on the top principle components of my 
+data and visualize the clusters.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+Hierarchical clustering is an old technique that arranges samples into a 
+hierarchy based on their relative similarity to each other. Most implementations 
+do so by joining the most similar samples into a new cluster, then joining 
+similar clusters into larger clusters, and so on, until all samples belong to a 
+single cluster. This process yields a dendrogram that defines clusters with 
+progressively increasing granularity. Variants of hierarchical clustering 
+methods primarily differ in how they choose to perform the agglomerations. For 
+example, complete linkage aims to merge clusters with the smallest maximum 
+distance between their elements, while Ward’s method aims to minimize the 
+increase in within-cluster variance.
+In the context of scRNA-seq, the main advantage of hierarchical clustering lies 
+in the production of the dendrogram. This is a rich summary that quantitatively 
+captures the relationships between subpopulations at various resolutions. 
+Cutting the dendrogram at high resolution is also guaranteed to yield clusters 
+that are nested within those obtained at a low-resolution cut; this can be 
+helpful for interpretation. The dendrogram is also a natural representation of 
+the data in situations where cells have descended from a relatively recent 
+common ancestor.
+In practice, hierarchical clustering is too slow to be used for anything but 
+the smallest scRNA-seq datasets. Most implementations require a cell-cell 
+distance matrix that is prohibitively expensive to compute for a large number 
+of cells.
+We use a HclustParam object to instruct clusterCells() to perform hierarchical 
+clustering on the top PCs. Specifically, it computes a cell-cell distance matrix 
+using the top PCs and then applies Ward’s minimum variance method to obtain a 
+dendrogram. The dendrogram can them be visualized using plot() function.
+The demo plot shows hierarchy of cells in the 416B data set after hierarchical 
+clustering, where each leaf node is a cell that is coloured according to its 
+oncogene induction status (red is induced, blue is control) and plate of origin 
+(light or dark).
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+#--- variance-modelling ---#
+dec.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+chosen.hvgs <- getTopHVGs(dec.416b, prop=0.1)
+
+#--- batch-correction ---#
+library(limma)
+assay(sce.416b, "corrected") <- removeBatchEffect(logcounts(sce.416b), 
+    design=model.matrix(~sce.416b$phenotype), batch=sce.416b$block)
+
+#--- dimensionality-reduction ---#
+sce.416b <- runPCA(sce.416b, ncomponents=10, subset_row=chosen.hvgs,
+    exprs_values="corrected", BSPARAM=BiocSingular::ExactParam())
+
+set.seed(1010)
+sce.416b <- runTSNE(sce.416b, dimred="PCA", perplexity=10)
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS ABOVE
+
+library(bluster)
+# perform hierarchial clustering
+hclust.416b <- clusterCells(sce.416b, use.dimred="PCA",
+    BLUSPARAM=HclustParam(method="ward.D2"), full=TRUE)
+tree.416b <- hclust.416b$objects$hclust
+
+# making a prettier dendrogram
+library(dendextend)
+tree.416b$labels <- seq_along(tree.416b$labels)
+dend <- as.dendrogram(tree.416b, hang=0.1)
+
+combined.fac <- paste0(sce.416b$block, ".", 
+    sub(" .*", "", sce.416b$phenotype))
+labels_colors(dend) <- c(
+    "20160113.wild"="blue",
+    "20160113.induced"="red",
+    "20160325.wild"="dodgerblue",
+    "20160325.induced"="salmon"
+)[combined.fac][order.dendrogram(dend)]
+
+# visualizing the dendrogram
+plot(dend)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform hierarchical clustering on the top principle components of my 
+data to obtain explicit clusters and then visualize the clusters.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+Hierarchical clustering is an old technique that arranges samples into a 
+hierarchy based on their relative similarity to each other. Most implementations 
+do so by joining the most similar samples into a new cluster, then joining 
+similar clusters into larger clusters, and so on, until all samples belong to a 
+single cluster. This process yields a dendrogram that defines clusters with 
+progressively increasing granularity. Variants of hierarchical clustering 
+methods primarily differ in how they choose to perform the agglomerations. For 
+example, complete linkage aims to merge clusters with the smallest maximum 
+distance between their elements, while Ward’s method aims to minimize the 
+increase in within-cluster variance.
+In the context of scRNA-seq, the main advantage of hierarchical clustering lies 
+in the production of the dendrogram. This is a rich summary that quantitatively 
+captures the relationships between subpopulations at various resolutions. 
+Cutting the dendrogram at high resolution is also guaranteed to yield clusters 
+that are nested within those obtained at a low-resolution cut; this can be 
+helpful for interpretation. The dendrogram is also a natural representation of 
+the data in situations where cells have descended from a relatively recent 
+common ancestor.
+In practice, hierarchical clustering is too slow to be used for anything but 
+the smallest scRNA-seq datasets. Most implementations require a cell-cell 
+distance matrix that is prohibitively expensive to compute for a large number 
+of cells.
+We use a HclustParam object to instruct clusterCells() to perform hierarchical 
+clustering on the top PCs. Specifically, it computes a cell-cell distance matrix 
+using the top PCs and then applies Ward’s minimum variance method to obtain a 
+dendrogram. 
+To obtain explicit clusters, we “cut” the tree by removing internal branches 
+such that every subtree represents a distinct cluster. This is most simply done 
+by removing internal branches above a certain height of the tree, as performed 
+by the cutree() function. A more sophisticated variant of this approach is 
+implemented in the dynamicTreeCut package, which uses the shape of the branches 
+to obtain a better partitioning for complex dendrograms. We enable this option 
+by setting cut.dynamic=TRUE, with additional tweaking of the deepSplit= 
+parameter to control the resolution of the resulting clusters.
+The dendrogram can them be visualized using plot() function.
+The demo plot shows hierarchy of cells in the 416B data set after hierarchical 
+clustering, where each leaf node is a cell that is coloured according to its 
+assigned cluster identity from a dynamic tree cut.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+#--- variance-modelling ---#
+dec.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+chosen.hvgs <- getTopHVGs(dec.416b, prop=0.1)
+
+#--- batch-correction ---#
+library(limma)
+assay(sce.416b, "corrected") <- removeBatchEffect(logcounts(sce.416b), 
+    design=model.matrix(~sce.416b$phenotype), batch=sce.416b$block)
+
+#--- dimensionality-reduction ---#
+sce.416b <- runPCA(sce.416b, ncomponents=10, subset_row=chosen.hvgs,
+    exprs_values="corrected", BSPARAM=BiocSingular::ExactParam())
+
+set.seed(1010)
+sce.416b <- runTSNE(sce.416b, dimred="PCA", perplexity=10)
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS ABOVE
+
+library(bluster)
+# perform hierarchial clustering
+hclust.416b <- clusterCells(sce.416b, use.dimred="PCA",
+    BLUSPARAM=HclustParam(method="ward.D2"), full=TRUE)
+tree.416b <- hclust.416b$objects$hclust
+
+# making a prettier dendrogram
+library(dendextend)
+tree.416b$labels <- seq_along(tree.416b$labels)
+dend <- as.dendrogram(tree.416b, hang=0.1)
+
+library(bluster)
+library(dynamicTreeCut)
+# perform hierarchial clustering for explicit clusters
+hclust.dyn <- clusterCells(sce.416b, use.dimred="PCA",
+    BLUSPARAM=HclustParam(method="ward.D2", cut.dynamic=TRUE,
+        cut.params=list(minClusterSize=10, deepSplit=1)))
+table(hclust.dyn)
+
+# adding labels
+labels_colors(dend) <- as.integer(hclust.dyn)[order.dendrogram(dend)]
+
+# visualizing the dendrogram
+plot(dend)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to perform hierarchical clustering on the top principle components of my 
+data to obtain explicit clusters for grouping cells on a t-SNE plot.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+Hierarchical clustering is an old technique that arranges samples into a 
+hierarchy based on their relative similarity to each other. Most implementations 
+do so by joining the most similar samples into a new cluster, then joining 
+similar clusters into larger clusters, and so on, until all samples belong to a 
+single cluster. This process yields a dendrogram that defines clusters with 
+progressively increasing granularity. Variants of hierarchical clustering 
+methods primarily differ in how they choose to perform the agglomerations. For 
+example, complete linkage aims to merge clusters with the smallest maximum 
+distance between their elements, while Ward’s method aims to minimize the 
+increase in within-cluster variance.
+In the context of scRNA-seq, the main advantage of hierarchical clustering lies 
+in the production of the dendrogram. This is a rich summary that quantitatively 
+captures the relationships between subpopulations at various resolutions. 
+Cutting the dendrogram at high resolution is also guaranteed to yield clusters 
+that are nested within those obtained at a low-resolution cut; this can be 
+helpful for interpretation. The dendrogram is also a natural representation of 
+the data in situations where cells have descended from a relatively recent 
+common ancestor.
+In practice, hierarchical clustering is too slow to be used for anything but 
+the smallest scRNA-seq datasets. Most implementations require a cell-cell 
+distance matrix that is prohibitively expensive to compute for a large number 
+of cells.
+We use a HclustParam object to instruct clusterCells() to perform hierarchical 
+clustering on the top PCs. Specifically, it computes a cell-cell distance matrix 
+using the top PCs and then applies Ward’s minimum variance method to obtain a 
+dendrogram. 
+To obtain explicit clusters, we “cut” the tree by removing internal branches 
+such that every subtree represents a distinct cluster. This is most simply done 
+by removing internal branches above a certain height of the tree, as performed 
+by the cutree() function. A more sophisticated variant of this approach is 
+implemented in the dynamicTreeCut package, which uses the shape of the branches 
+to obtain a better partitioning for complex dendrograms. We enable this option 
+by setting cut.dynamic=TRUE, with additional tweaking of the deepSplit= 
+parameter to control the resolution of the resulting clusters.
+We then assign the cluster assignments back into our SingleCellExperiment object 
+as a factor in the column metadata. This allows us to conveniently visualize the 
+distribution of clusters in a t-SNE plot using plotReducedDim() function from 
+scater package. 
+In the demo t-SNE plot of the 416b dataset, each point represents a cell and is 
+coloured according to the identity of the assigned cluster from hierarchical 
+clustering. Here, cluster 2 is split across two visual clusters in the plot but 
+we attribute this to a distortion introduced by t-SNE, given that this cluster 
+actually has the highest average silhouette width.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+#--- variance-modelling ---#
+dec.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+chosen.hvgs <- getTopHVGs(dec.416b, prop=0.1)
+
+#--- batch-correction ---#
+library(limma)
+assay(sce.416b, "corrected") <- removeBatchEffect(logcounts(sce.416b), 
+    design=model.matrix(~sce.416b$phenotype), batch=sce.416b$block)
+
+#--- dimensionality-reduction ---#
+sce.416b <- runPCA(sce.416b, ncomponents=10, subset_row=chosen.hvgs,
+    exprs_values="corrected", BSPARAM=BiocSingular::ExactParam())
+
+set.seed(1010)
+sce.416b <- runTSNE(sce.416b, dimred="PCA", perplexity=10)
+
+## FOR DEMO PURPOSE WE'LL USE THE 416B DATASET AS ABOVE
+
+library(bluster)
+# perform hierarchial clustering
+hclust.416b <- clusterCells(sce.416b, use.dimred="PCA",
+    BLUSPARAM=HclustParam(method="ward.D2"), full=TRUE)
+tree.416b <- hclust.416b$objects$hclust
+
+# making a prettier dendrogram
+library(dendextend)
+tree.416b$labels <- seq_along(tree.416b$labels)
+dend <- as.dendrogram(tree.416b, hang=0.1)
+
+library(bluster)
+library(dynamicTreeCut)
+# perform hierarchial clustering for explicit clusters
+hclust.dyn <- clusterCells(sce.416b, use.dimred="PCA",
+    BLUSPARAM=HclustParam(method="ward.D2", cut.dynamic=TRUE,
+        cut.params=list(minClusterSize=10, deepSplit=1)))
+table(hclust.dyn)
+
+
+library(scater)
+# cluster assignments into sce object
+colLabels(sce.416b) <- factor(hclust.dyn)
+
+# visualization of clusters 
+plotReducedDim(sce.416b, "TSNE", colour_by="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. Since I 
+am working with a large data set, how can I perform hierarchical clustering on 
+my data and then visualize the clusters?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+Hierarchical clustering is an old technique that arranges samples into a 
+hierarchy based on their relative similarity to each other. Most implementations 
+do so by joining the most similar samples into a new cluster, then joining 
+similar clusters into larger clusters, and so on, until all samples belong to a 
+single cluster. This process yields a dendrogram that defines clusters with 
+progressively increasing granularity. Variants of hierarchical clustering 
+methods primarily differ in how they choose to perform the agglomerations. For 
+example, complete linkage aims to merge clusters with the smallest maximum 
+distance between their elements, while Ward’s method aims to minimize the 
+increase in within-cluster variance.
+In the context of scRNA-seq, the main advantage of hierarchical clustering lies 
+in the production of the dendrogram. This is a rich summary that quantitatively 
+captures the relationships between subpopulations at various resolutions. 
+Cutting the dendrogram at high resolution is also guaranteed to yield clusters 
+that are nested within those obtained at a low-resolution cut; this can be 
+helpful for interpretation. The dendrogram is also a natural representation of 
+the data in situations where cells have descended from a relatively recent 
+common ancestor.
+In practice, hierarchical clustering is too slow to be used for anything but 
+the smallest scRNA-seq datasets. Most implementations require a cell-cell 
+distance matrix that is prohibitively expensive to compute for a large number 
+of cells.
+However, we can make use of two-step approach to perform hierarchical clustering 
+on larger data set. In this approach hierarchical clustering to perform on the 
+representative centroids. This avoids the construction of a distance matrix 
+across all cells for faster computation.
+The clusterCells() function supports a “two-step” mode where k-means is 
+initially used to obtain representative centroids that are then used for 
+hierarchical clustering. The parameters for this are supplied in a KmeansParam 
+object and a HclustParam object respectively in clusterCells(). We use our top 
+PCs after setting the random seed to ensure that the results are reproducible. 
+The clusters can be visualize using plotTSNE() function from scater package. 
+In the demo t-SNE plot of the 10X PBMC dataset, each point represents a cell 
+and is coloured according to the identity of the assigned cluster from combined 
+k-mean/hierarchical clustering.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+# setting the seed due to the randomness of k-means
+set.seed(1111)
+
+library(bluster)
+# get clusters
+khclust.info <- clusterCells(sce.pbmc, use.dimred="PCA",
+    BLUSPARAM=TwoStepParam(
+        first=KmeansParam(centers=1000),
+        second=HclustParam(method="ward.D2", cut.dynamic=TRUE,
+            cut.param=list(deepSplit=3)) # for higher resolution.
+    ),
+    full=TRUE
+)
+
+# check clusters
+table(khclust.info$clusters)
+
+library(scater)
+# visualization of clusters 
+plotTSNE(sce.pbmc, colour_by=I(khclust.info$clusters), 
+    text_by=I(khclust.info$clusters))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. Since I 
+am working with a large data set is there another approach to improve resolution 
+of my data set?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. 
+The cluster assignment of each cell in lower dimensional space can be obtained 
+with clusterCells() function from scran package. It returns a vector containing 
+cluster assignments for each cell in the SingleCellExperiment object.
+Two-step approach can be used to perform for example, combined 
+k-means/hierarchical clustering, and combined k-means/affinity propagation 
+clustering on large data set, where we could subject our k-means centroids to 
+clustering by hierarchy and affinity propagation respectively.
+Another simple approach to improving resolution is to repeat the feature 
+selection and clustering within a single cluster. This aims to select HVGs and 
+PCs that are more relevant to internal structure, improving resolution by 
+avoiding noise from unnecessary features. Subsetting also encourages clustering 
+methods to separate cells according to more modest heterogeneity in the absence 
+of distinct subpopulations. 
+Here we demonstrate this with a cluster of putative memory T cells from the 
+PBMC dataset, identified according to several markers.
+Visualization can be done by plotExpression() function from scater package that 
+plots expression values for a set of featues in a SingleExperiment object. The 
+demo plot shows the distribution of log-normalized expression values for several 
+T cell markers within each cluster in the 10X PBMC dataset. Each cluster is 
+color-coded for convenience.
+Following repeated modelling and PCA on the subset, we apply graph-based 
+clustering within this memory subset to obtain CD4+ and CD8+ subclusters. 
+Admittedly, the expression of CD4 is so low that the change is rather modest, 
+but the interpretation is clear enough.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# get cluster assignments
+clust.full <- clusterCells(sce.pbmc, use.dimred="PCA")
+
+library(scater)
+# visualization of clusters 
+plotExpression(sce.pbmc, features=c("CD3E", "CCR7", "CD69", "CD44"),
+    x=I(clust.full), colour_by=I(clust.full))
+
+# repeating modelling and PCA on the subset
+memory <- 10L
+sce.memory <- sce.pbmc[,clust.full==memory]
+dec.memory <- modelGeneVar(sce.memory)
+sce.memory <- denoisePCA(sce.memory, technical=dec.memory,
+    subset.row=getTopHVGs(dec.memory, n=5000))
+
+# graph-based clustering
+g.memory <- buildSNNGraph(sce.memory, use.dimred="PCA")
+clust.memory <- igraph::cluster_walktrap(g.memory)$membership
+
+library(scater)
+# visualization of clusters
+plotExpression(sce.memory, features=c("CD8A", "CD4"),
+    x=I(factor(clust.memory)))
+
+```
+
+--- TASK END

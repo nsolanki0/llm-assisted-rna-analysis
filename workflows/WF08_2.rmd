@@ -1,0 +1,1318 @@
+---
+title: "prompt/completion pairs chapter 8"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. 
+I want to calculate the CPM for every column except for the width column. 
+How do I do this?
+
+completion:
+To calculate the Counts Per Million (CPM) for the columns in 
+your raw counts data, you first read in the data using the
+`data.table::fread` function. To then calculate
+the CPM, you remove the "width" column, calculate 
+the sum of counts for each sample, and then calculate the CPM 
+by dividing each count by the corresponding sample's total count 
+and multiplying by 1 million. Finally, we save the CPM values
+in a new variable. 
+
+
+```{r,eval=FALSE}
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# calculate cpm values
+cpm <- apply(subset(raw_counts, select = c(-width)), 2,
+             function(x) x/sum(as.numeric(x)) * 10^6)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I want to compute the RPKM. 
+The width column should be used for the length of the genes. 
+
+completion:
+To calculate the Reads Per Kilobase Million (RPKM)  for the columns in 
+your raw counts data, you first read in the data using the
+`data.table::fread` function. To then compute the RPKM using the "width" column 
+for the length of the corresponding genes, you multiply the raw reads by 10^9. 
+Then divide by the corresponding gene lengths (in kilobases) and divide the above 
+result by the sum of all counts for that sample. This gives you the RPKM. 
+
+```{r,eval=FALSE}
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+
+# compute rpkm 
+rpkm <- apply(X = subset(raw_counts, select = c(-width)),
+              MARGIN = 2, 
+              FUN = function(x) {
+                10^9 * x / gene_lengths / sum(as.numeric(x))
+               })
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. 
+I want to compute the TPM. 
+The width column should be used for the length of the genes.
+How do I do this?
+
+
+completion:
+To compute the Transcripts Per Million (TPM) values for your 
+gene expression data using the provided txt file,
+and the gene length information from the "width" column, you
+first read in the data using the `data.table::fread` function. Then,
+you can calculate the gene length normalized values by dividing 
+the counts by the corresponding gene lengths divided by 1000. 
+then, divide the above result by the sum of all counts for that sample 
+times 1 million. 
+
+```{r,eval=FALSE}
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+# compute TPM
+#find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. I expect the normal samples
+to cluster together, and the cancer samples to cluster together. 
+I want to perform PCA (The width column can be discarded 
+for this analysis) to see if this is really the case, and plot
+the results in a scatterplot. Annotation of the scatterplot 
+can be done using the `group` column from the "SRP029880.colData.txt"
+file. How do I do this ?
+
+completion:
+To perform PCA on your RNA-seq data and create a scatterplot to visualize 
+the clustering of normal and cancer samples based on the "group" information 
+from the "SRP029880.colData.txt" file, you first read in the data using the
+`data.table::fread` function. You can perform PCA with help of the
+`prcomp` function. To then visualize the results in a scatterplot, 
+you can make use of the `ggplot2` library in R. 
+
+```{r,eval=FALSE}
+require(ggplot2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# prepare annotation vector
+annotation <- as.factor(col_data[, "group"])
+names(annotation) <- rownames(col_data)
+
+# prepare data frame so that samples are in rows
+# and features are in columns:
+data <- t(subset(raw_counts, select = c(-width)))
+
+# perform PCA excluding width column
+res <- prcomp(data)$x
+res <- as.data.frame(res)
+
+# ensure same ordering in annotation vector
+annotation <- annotation[rownames(res)]
+
+# plot first 2 PC's in scatterplot and 
+# annotate 
+ggplot2::ggplot (data = res,
+                 aes(x = PC1,
+                     y = PC2)) +
+        geom_point(aes(colour = annotation)) +
+        geom_text(hjust=-0.1, vjust=0,label=annotation)+
+        ggtitle ("PCA of RNA seq samples")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I want to calculate the TPM and then
+select the top 100 genes with the highest variance across
+all samples. How do I do this?
+
+completion:
+To select the top 100 genes with the highest variance in from
+the txt file called "SRP029880.raw_counts.txt", you can first
+read in the data using the `data.table::fread` function. Then, 
+the TPM is calculated. Next, you can compute the variance of 
+each gene across all samples. The result of this analysis is 
+ordered, and the names of the 100 genes which showed the 
+highest variance can then be selected. 
+
+```{r,eval=FALSE}
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+# compute TPM
+#find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+
+# compute the variance of each gene across samples
+var_count <- apply(tpm,1,var)
+
+# order in decreasing value
+var_count <- var_count[order(var_count, decreasing=TRUE),drop=FALSE]
+
+# get names of first 100 genes
+selectedGenes <- names(var_count)[1:100]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. I expect the normal samples
+to cluster together, and the cancer samples to cluster together.
+To check this, I want to create a heatmap. I first want to normalize the 
+counts by calculating the TPM. The width column should be used for the 
+length of the genes. I then want to create a heatmap of the TPM counts, 
+butI want to create this heatmap only with 
+the top 100 genes with the highest variance. I want to annotate 
+this heatmap using information from the `group` column in the
+"SRP029880.colData.txt" txt file . How do I do this?
+
+completion:
+To create a heatmap of the 100 genes with the highest variance using the
+TPM count, you can first read in the data using the `data.table::fread` 
+function. Then, the TPM is calculated. Next, you can compute 
+the variance of each gene across all samples. The result of 
+this analysis is ordered, and the names of the 100 genes 
+which showed the highest variance can then be selected. 
+These you can then use to plot a heatmap using
+the `pheatmap` library. 
+
+```{r,eval=FALSE}
+require(pheatmap)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# prepare annotation vector
+annotation <- col_data[, "group", drop=FALSE]
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+# compute TPM
+#find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+
+# compute the variance of each gene across samples
+var_count <- apply(tpm,1,var)
+
+# order in decreasing value
+var_count <- var_count[order(var_count, decreasing=TRUE),drop=FALSE]
+
+# get names of first 100 genes
+selectedGenes <- names(var_count)[1:100]
+
+# plot pheatmap
+pheatmap::pheatmap (tpm[selectedGenes, ],
+                    annotation_col = annotation,
+                    scale = "row")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I first want to calculate the
+TPM. The width column should be used for the 
+length of the genes.
+Then I want to compute the correlation 
+scores between each pair of samples using the TPM counts 
+and draw a correlation plot. I also want to draw a
+heatmap of the correlation and annotate with either
+case or control. How do I do this?
+
+completion:
+To create a heatmap of the 100 genes with the highest variance using the
+TPM count, you can first read in the data using the `data.table::fread` 
+function. Then, the TPM is calculated. Next, you can compute 
+the correlation between samples using the `cor` function. 
+After this you can visualize the results using `corrplot` and/or 
+`pheatmap` functions. 
+
+```{r,eval=FALSE}
+require(corrplot)
+require(pheatmap)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+# compute TPM
+# find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+
+# normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+
+# create annotation dataframe for later annotation
+annotation <- data.frame (anno = c(rep("CASE", 5), rep("Control", 5)),
+                          row.names = colnames(tpm))
+
+# caluclate correlations
+correlation_matrix <- cor(tpm)
+
+corrplot(correlation_matrix, order = 'hclust', 
+         addrect = 2, addCoef.col = 'white', 
+         number.cex = 0.7)
+
+# split the clusters into two based on the clustering similarity 
+pheatmap(correlation_matrix,
+         cutree_cols = 2,
+         annotation_col = annotation)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be discarded. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. I want to create a 
+DESeqDataSet object of the data in these 2 txt files, which
+would seperate based on the column `groups from the "SRP029880.colData.txt"
+txt file. How do I do this? 
+
+completion:
+To create a DESeqDataSet object from the mentioned txt files, we first
+read in the data using the `data.table::fread` function. We can then
+create a DESeqDataSet object using the `DESeqDataSetFromMatrix` function.
+The DESeqDataSet object contains all the information about the experimental 
+setup, the read counts, and the design formulas. Certain functions can be used 
+to access this information separately: rownames(dds) shows which features are 
+used in the study (e.g. genes), colnames(dds) displays the studied samples, 
+counts(dds) displays the count table, and colData(dds) displays the experimental setup.
+
+```{r,eval=FALSE}
+require(DESeq2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- subset(raw_counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+#define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = raw_counts,
+                              colData = col_data,
+                              design = as.formula(designFormula))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be discarded. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. 
+I want to create a DESeqDataSet object of the data in these 2 txt 
+files, which would seperate based on the column `groups from 
+the "SRP029880.colData.txt" txt file. Then, I want to remove 
+genes which have no count across all samples. 
+Finally, I want to calculate the 
+differential expression status of CASE samples compared 
+to the CTRL samples. I then want to order the results 
+based on p-value. How do I do this?
+
+completion:
+To create a DESeqDataSet object from the mentioned txt files, we first
+read in the data using the `data.table::fread` function. We can then
+create a DESeqDataSet object using the `DESeqDataSetFromMatrix` function.
+The DESeqDataSet object contains all the information about the experimental 
+setup, the read counts, and the design formulas. Certain functions can be used 
+to access this information separately: rownames(dds) shows which features are 
+used in the study (e.g. genes), colnames(dds) displays the studied samples, 
+counts(dds) displays the count table, and colData(dds) displays the experimental setup.
+To remove genes that have no counts across all samples in a
+DESeqDataSet object in R, you can use the rowSums() function 
+to calculate the sum of counts for each gene and then filter 
+out the genes with zero counts. 
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+Now, we can compare and contrast the samples based on different variables of 
+interest. In this case, the group variable that determines if a sample belongs 
+to the CASE group or the CTRL group.
+
+```{r,eval=FALSE}
+require(DESeq2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- subset(raw_counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+#define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = raw_counts,
+                              colData = col_data,
+                              design = as.formula(designFormula))
+
+# select entries which have a rowsum of 1 or higher
+dds <- dds[rowSums(DESeq2::counts(dds)) >= 1, ]
+
+# run DESeq
+dds <- DESeq(dds)
+
+#compute the contrast for the 'group' variable where 'CTRL' 
+#samples are used as the control group. 
+DEresults <- results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+#sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue), ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be discarded. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. 
+I want to create a DESeqDataSet object of the data in these 2 txt 
+files, which would seperate based on the column `groups from 
+the "SRP029880.colData.txt" txt file. Then, I want to remove 
+genes which have no count across all samples. 
+Finally, I want to calculate the 
+differential expression status of CASE samples compared 
+to the CTRL samples. I then want to order the results 
+based on p-value, and plot the p-value distribution.
+How do I do this?
+
+completion:
+To create a DESeqDataSet object from the mentioned txt files, we first
+read in the data using the `data.table::fread` function. We can then
+create a DESeqDataSet object using the `DESeqDataSetFromMatrix` function.
+The DESeqDataSet object contains all the information about the experimental 
+setup, the read counts, and the design formulas. Certain functions can be used 
+to access this information separately: rownames(dds) shows which features are 
+used in the study (e.g. genes), colnames(dds) displays the studied samples, 
+counts(dds) displays the count table, and colData(dds) displays the experimental setup.
+To remove genes that have no counts across all samples in a
+DESeqDataSet object in R, you can use the rowSums() function 
+to calculate the sum of counts for each gene and then filter 
+out the genes with zero counts. 
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+Now, we can compare and contrast the samples based on different variables of 
+interest. In this case, the group variable that determines if a sample belongs 
+to the CASE group or the CTRL group. You can then plot the P-value 
+distribution using the `ggplot` function. 
+
+```{r,eval=FALSE}
+require(DESeq2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- subset(raw_counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+#define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = raw_counts,
+                              colData = col_data,
+                              design = as.formula(designFormula))
+
+# select entries which have a rowsum of 1 or higher
+dds <- dds[rowSums(DESeq2::counts(dds)) >= 1, ]
+
+# run DESeq
+dds <- DESeq(dds)
+
+#compute the contrast for the 'group' variable where 'CTRL' 
+#samples are used as the control group. 
+DEresults <- results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+#sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue), ]
+
+# plot P-value distribution
+ggplot(data = as.data.frame(DEresults), aes(x = pvalue)) + 
+  geom_histogram(bins = 100)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be discarded. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. 
+I want to create a DESeqDataSet object of the data in these 2 txt 
+files, which would seperate based on the column `groups from 
+the "SRP029880.colData.txt" txt file. Then, I want to remove 
+genes which have no count across all samples. 
+Finally, I want to calculate the 
+differential expression status of CASE samples compared 
+to the CTRL samples. I then want to extract the
+normalized counts. How do I do this?
+
+completion:
+To create a DESeqDataSet object from the mentioned txt files, we first
+read in the data using the `data.table::fread` function. We can then
+create a DESeqDataSet object using the `DESeqDataSetFromMatrix` function.
+The DESeqDataSet object contains all the information about the experimental 
+setup, the read counts, and the design formulas. Certain functions can be used 
+to access this information separately: rownames(dds) shows which features are 
+used in the study (e.g. genes), colnames(dds) displays the studied samples, 
+counts(dds) displays the count table, and colData(dds) displays the experimental setup.
+To remove genes that have no counts across all samples in a
+DESeqDataSet object in R, you can use the rowSums() function 
+to calculate the sum of counts for each gene and then filter 
+out the genes with zero counts. 
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+To then extract the normalized counts, you can make use of the `DESeq::counts`
+function. 
+
+```{r,eval=FALSE}
+require(DESeq2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- subset(raw_counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+#define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = raw_counts,
+                              colData = col_data,
+                              design = as.formula(designFormula))
+
+# select entries which have a rowsum of 1 or higher
+dds <- dds[rowSums(DESeq2::counts(dds)) >= 1, ]
+
+# run DESeq
+dds <- DESeq(dds)
+
+# extract normalized counts from the DESeqDataSet object
+countsNormalized <-DESeq2::counts(dds, normalized = TRUE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP029880.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 5 columns are
+case samples, and the next 5 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be discarded. 
+I also have another txt file called 
+"SRP029880.colData.txt". Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. 
+I want to create a DESeqDataSet object of the data in these 2 txt 
+files, which would seperate based on the column `groups from 
+the "SRP029880.colData.txt" txt file. Then, I want to calculate the 
+differential expression status of CASE samples compared 
+to the CTRL samples. I want to extract the gene names
+of genes which are differentially expressed, with an adjusted p-value
+of < 0.05. I then want to do GO enrichment analysis and visualize the results. 
+How do I do this?
+
+completion:
+To create a DESeqDataSet object from the mentioned txt files, we first
+read in the data using the `data.table::fread` function. We can then
+create a DESeqDataSet object using the `DESeqDataSetFromMatrix` function.
+The DESeqDataSet object contains all the information about the experimental 
+setup, the read counts, and the design formulas. Certain functions can be used 
+to access this information separately: rownames(dds) shows which features are 
+used in the study (e.g. genes), colnames(dds) displays the studied samples, 
+counts(dds) displays the count table, and colData(dds) displays the experimental setup.
+To remove genes that have no counts across all samples in a
+DESeqDataSet object in R, you can use the rowSums() function 
+to calculate the sum of counts for each gene and then filter 
+out the genes with zero counts. 
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable.
+The results can be extracted using the `results` function. 
+Performing GO term enrichment can be done using the 
+`grpofiler2` library. To visualize the results you can make use of the
+`gostplot` function. Here is how you do it:
+
+```{r,eval=FALSE}
+require(DESeq2)
+require(gprofiler2)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- subset(raw_counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+#define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData
+dds <- DESeqDataSetFromMatrix(countData = raw_counts,
+                              colData = col_data,
+                              design = as.formula(designFormula))
+
+# run DESeq
+dds <- DESeq(dds)
+
+# extract results
+DEresults <- results(dds, contrast = c("group", "CASE", "CTRL"))
+
+# remove results with pvalue of NA
+DEresults <- DEresults[!is.na(DEresults[,"padj"]),]
+
+# get differentially expressed genes:
+diff_exp <- rownames(DEresults[DEresults[,"padj"]<0.05, ])
+
+# calculate enriched GO terms
+goResults <- gost(query = diff_exp,
+                  organism = "hsapiens",
+                  user_threshold = 0.05)
+
+gostplot(goResults, capped = TRUE, interactive = TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have raw counts from a RNA-seq experiment
+in a txt file called "SRP021193.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 6 columns are
+case samples, and the next 6 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which sould be used for calculating the TPM. 
+I also have another txt file called 
+"SRP021193.colData.txt". Here, the samples are the rows and the
+file contains 3 columns called `diagnosis`, `group` and `librarySelection`. 
+The first column describes if the sample is a type of heart disease or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. The `librarySelection` column holds information about how
+the library was selected. I want to calculate the TPM counts for the
+raw reads, and select the top 100 genes with the greatest variance. Then,
+I want to visualize these counts in a heatmap, to see
+if `CTRL` and `CASE` groups cluster together, or if for instance 
+the difference in library selection causes samples to cluster together. 
+How do I do this?
+
+completion:
+To compute the Transcripts Per Million (TPM) values for your 
+gene expression data using the provided txt file,
+and the gene length information from the "width" column, you
+first read in the data using the `data.table::fread` function. Then,
+you can calculate the gene length normalized values by dividing 
+the counts by the corresponding gene lengths divided by 1000. 
+then, divide the above result by the sum of all counts for that sample 
+times 1 million. The `var` function can be used to select the top 100 genes
+with the highest variance across samples. 
+To then create a heatmap to see which factors potentially influence
+the clustering of the different samples, we can make use of the `pheatmap` library. 
+You can annotate the heatmap with the information in the `SRP021193.colData.txt` file. 
+
+```{r,eval=FALSE}
+require (DESeq2)
+require(pheatmap)
+
+# Reading in and preparing data
+raw_counts <- as.data.frame(data.table::fread("SRP021193.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts [, -1]
+
+col_data <- as.data.frame(data.table::fread("SRP021193.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# calculate TPM counts
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [,"width"])
+
+# compute TPM
+#find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+
+# select top 100 genes with greatest variance
+selectedGenes <- names(sort(apply(tpm, 1, var),
+                            decreasing = T)[1:100])
+
+
+pheatmap(tpm[selectedGenes,], 
+             scale = 'row',
+             annotation_col = col_data,
+             show_rownames = FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have counts from a RNA-seq experiment
+in a txt file called "SRP021193.raw_counts.txt". 
+The rows correspond to the genes and the columns 
+represent different samples. The first 6 columns are
+case samples, and the next 6 are control samples.
+There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs which should be discarded
+I also have another txt file called 
+"SRP021193.colData.txt". Here, the samples are the rows and the
+file contains 3 columns called `diagnosis`, `group` and `librarySelection`. 
+The first column describes if the sample is a type of heart disease or if
+the sample is from a normal individual. The group column holds 
+the values `CTRL` or `CASE` based on if it is a control or case
+sample. The `librarySelection` column holds information about how
+the library was selected. I know that the `librarySelection` is an 
+unwanted covariate. I want to perform differential expression analysis
+for `CTRL` vs `CASE` (so the `group` column) whilst taking the covariate
+into account. How do I do this?
+
+completion:
+To perform a differential expression analysis for "CTRL" vs. "CASE" samples 
+while taking the covariate "librarySelection" into account, 
+you can use the DESeq2 package. DESeq2 is a popular package for analyzing 
+RNA-seq data and can handle the incorporation 
+of covariates into your analysis. When creating the DESeqDataSet object, 
+you can specify the design formula that includes the covariate "librarySelection."
+When constructing the design formula, it is very important to pay attention 
+to the sequence of variables. We leave the variable of interest to the 
+last and we can add as many covariates as 
+we want to the beginning of the design formula.
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable.
+The results can be extracted using the `results` function. 
+
+```{r,eval=FALSE}
+require (DESeq2)
+
+# Reading in and preparing data
+counts <- as.data.frame(data.table::fread("SRP021193.raw_counts.txt", header=TRUE))
+rownames (counts) <- counts[, 1]
+counts <- subset(counts, select=c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP021193.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# create DESeqDataset whilst taking covariate into account
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = col_data,
+                              design = ~ LibrarySelection + group)
+# run DESeq
+dds <- DESeq(dds)
+
+# extract results
+DEresults <- results(dds, contrast = c("group", "CASE", "CTRL"))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have RNA-seq counts from a file named "SRP049988.raw_counts.txt." 
+The rows represent genes, and the columns correspond to various samples. 
+The initial 5 columns are for case samples, followed by 5 columns for control samples. 
+There's an additional column, "width," which contains gene lengths in base pairs 
+that should be omitted.I also possess another text file named "SRP049988.colData.txt." 
+In this file, the rows represent samples, and it contains 2 columns: "source_name" 
+and "group." The "source_name" column describes whether the sample is associated 
+with lung carcinoma or a normal individual. The "group" column holds values "CTRL" 
+for control samples and "CASE" for case samples. I have identified unwanted variation in the 
+data that needs removal. To address this, I've collected a set of housekeeping genes, 
+listed in a file called "HK_genes.txt." These genes should exhibit consistent expression 
+levels across all samples. I want to utilize this information to eliminate the unwanted variation.
+How do I do this?
+
+completion:
+To eliminate unwanted variation by using information from the house keeping genes, 
+you can make use of the `RUVSeq` library in R. Since we have information of genes
+which should not change their expression over the different samples, the `RUVg` function
+can be used to remove unwanted variation, based on this information. 
+You can run RUVg() with different numbers 
+of factors of unwanted variation (k). Below is an example of how to run this function with 
+k=1:4.  You can then plot the PCA after removing the unwanted variation. You should be able 
+to see which k values (number of factors) produce better separation between sample groups.
+
+```{r,eval=FALSE}
+require(RUVSeq)
+require(EDASeq)
+
+# Reading in and preparing data
+counts <- as.data.frame(data.table::fread("SRP049988.raw_counts.txt", header=TRUE))
+rownames (counts) <- counts[, 1]
+counts <- subset(counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP049988.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# read in housekeeping gene information
+hk_genes <- data.table::fread("HK_genes.txt",header=F)
+
+# convert counts to seqExpressionSet object
+set <- newSeqExpressionSet(counts = as.matrix(counts),
+                           phenoData = col_data)
+
+# intersection of which housekeeping genes are available
+house_keeping_genes <- intersect(rownames(set), hk_genes$V1)
+
+# run RUVg with different k and plot PCA results
+par(mfrow = c(2, 2))
+for(k in 1:4) {
+  set_g <- RUVg(x = set, cIdx = house_keeping_genes, k = k)
+  plotPCA(set_g, col=as.numeric(col_data$group), cex = 0.9, adj = 0.5, 
+          main = paste0('with RUVg, k = ',k), 
+          ylim = c(-1, 1), xlim = c(-1, 1))
+}
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization,  numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have RNA-seq counts from a file named "SRP049988.raw_counts.txt." 
+The rows represent genes, and the columns correspond to various samples. 
+The initial 5 columns are for case samples, followed by 5 columns for control samples. 
+There's an additional column, "width," which contains gene lengths in base pairs 
+that should be omitted.I also possess another text file named "SRP049988.colData.txt." 
+In this file, the rows represent samples, and it contains 2 columns: "source_name" 
+and "group." The "source_name" column describes whether the sample is associated 
+with lung carcinoma or a normal individual. The "group" column holds values "CTRL" 
+for control samples and "CASE" for case samples. I have identified unwanted variation in the 
+data that needs removal. I however have no additional information I can use. The variation 
+between samples from the 'CTRL' and 'CASE' should be minimized. How do I do this?
+
+completion:
+To eliminate unwanted variation by using information from the house keeping genes, 
+you can make use of the `RUVSeq` library in R. Since the variation 
+between samples from the 'CTRL' and 'CASE' should be minimized, but you have
+no additional information to use for this, you can make use of the `RUVs` function. 
+You can run RUVs() with different numbers 
+of factors of unwanted variation (k). Below is an example of how to run this function with 
+k=1:4. You can then plot the PCA after removing the unwanted variation. You should be able 
+to see which k values (number of factors) produce better separation between sample groups.
+
+```{r,eval=FALSE}
+require(RUVSeq)
+require(EDASeq)
+
+# Reading in and preparing data
+counts <- as.data.frame(data.table::fread("SRP049988.raw_counts.txt", header=TRUE))
+rownames (counts) <- counts[, 1]
+counts <- subset(counts, select = c(-1,-width))
+
+col_data <- as.data.frame(data.table::fread("SRP049988.colData.txt", header=TRUE))
+rownames(col_data) <- col_data [, 1]
+col_data <- col_data [, -1]
+
+# convert counts to seqExpressionSet object
+set <- newSeqExpressionSet(counts = as.matrix(counts),
+                           phenoData = col_data)
+
+# make a table of sample groups from col_data 
+differences <- makeGroups(col_data$group)
+
+par(mfrow = c(2, 2))
+for(k in 1:4) {
+  set_s <- RUVs(set, unique(rownames(set)), 
+                k=k, differences) #all genes
+  plotPCA(set_s, col=as.numeric(col_data$group), 
+          cex = 0.9, adj = 0.5, 
+        main = paste0('with RUVs, k = ',k), 
+        ylim = c(-1, 1), xlim = c(-0.6, 0.6))
+}
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have RNA-seq raw count data in file "SRP029880.raw_counts.txt" and the 
+respective experimental setup data in file "SRP029880.colData.txt".
+I would like to perform differential expression analysis and visualize the 
+results in a volcano plot.
+How can I do this?
+
+completion:
+To perform and visualize differential expression analysis we will use 
+DESeq2 and ggplot2 package and proceed as follow. 
+We read in our count data and experimental setup data using
+data.table::fread(), it reads large files faster. 
+Next we create a matrix out of the count data without the "width" column, 
+define the design formula as "group", to describe the variable of interest 
+for our differential expression analysis, "CASE" & "CTRL", which are in "group".
+Using the count matrix and the setup data we create a DESeq data set object
+using DESeqDataSetFromMatrix() function. Remove genes that have almost 
+no information in any of the given samples. Using DESeq() function we estimate 
+the size factors to normalize the counts, estimate the dispersion values, 
+and compute a GLM model based on the experimental design formula. 
+Using results() function we compare and contrast the samples based on 
+different variables of interest to perform differential expression 
+analysis. We then sort the results by increasing p-value and use them to 
+obtain a volcano plot using ggplot() function. 
+ 
+```{r,eval=FALSE}
+
+library(DESeq2)
+library(ggplot2)
+
+# read the count data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create a matrix out of count data without the 'width' column
+countData <- as.matrix(subset(raw_counts, select = c(-width)))
+
+# read the experimental setup data
+colData <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(colData) <- colData [, 1]
+colData <- colData [, -1]
+
+# define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = countData, 
+                              colData = colData, 
+                              design = as.formula(designFormula))
+
+# for each gene, we count the total number of reads for that gene in all samples 
+# -and remove those that don't have at least 1 read
+dds <- dds[ rowSums(DESeq2::counts(dds)) > 1, ]
+
+# estimate size factors, dispersion values, gene-wise dispersion,
+# -mean-dispersion relationship and computer a GLM model based on 
+# -experimental design formula
+dds <- DESeq(dds)
+
+# differential expression analysis
+DEresults = results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+# sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue),]
+
+# volcano plot
+volplot <- ggplot(data = as.data.frame(DEresults), aes(x = log2FoldChange, y = -log10(pvalue))) +
+  # add threshold lines
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') + 
+  geom_point() 
+  
+volplot + theme(text = element_text(size = 10)) 
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have RNA-seq raw count data in file "SRP029880.raw_counts.txt" and the 
+respective experimental setup data in file "SRP029880.colData.txt".
+I would like to perform differential expression analysis and visualize the 
+results in a volcano plot that also indicates which genes are UP- or -DOWN- 
+regulated.
+How can I do this?
+
+completion:
+To perform and visualize differential expression analysis we will use 
+DESeq2 and ggplot2 package and proceed as follow. 
+We read in our count data and experimental setup data using
+data.table::fread(), it reads large files faster. 
+Next we create a matrix out of the count data without the "width" column, 
+define the design formula as "group", to describe the variable of interest 
+for our differential expression analysis, "CASE" & "CTRL", which are in "group".
+Using the count matrix and the setup data we create a DESeq data set object
+using DESeqDataSetFromMatrix() function. Remove genes that have almost 
+no information in any of the given samples. Using DESeq() function we estimate 
+the size factors to normalize the counts, estimate the dispersion values, 
+and compute a GLM model based on the experimental design formula. 
+Using results() function we compare and contrast the samples based on 
+different variables of interest to perform differential expression 
+analysis. We then sort the results by increasing p-value. To indicate
+which genes are UP- or -DOWN- regulated we add a column to the data frame
+and specify if the genes are UP- or -DOWN- regulated based on the p-value
+significance of their log2FoldChange being positive or negative respectively.
+We then obtain a volcano plot using ggplot() function. 
+
+```{r,eval=FALSE}
+
+library(DESeq2)
+library(ggplot2)
+
+# read the count data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create a matrix out of count data without the 'width' column
+countData <- as.matrix(subset(raw_counts, select = c(-width)))
+
+# read the experimental setup data
+colData <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(colData) <- colData [, 1]
+colData <- colData [, -1]
+
+# define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = countData, 
+                              colData = colData, 
+                              design = as.formula(designFormula))
+
+# for each gene, we count the total number of reads for that gene in all samples 
+# -and remove those that don't have at least 1 read
+dds <- dds[ rowSums(DESeq2::counts(dds)) > 1, ]
+
+# estimate size factors, dispersion values, gene-wise dispersion,
+# -mean-dispersion relationship and computer a GLM model based on 
+# -experimental design formula
+dds <- DESeq(dds)
+
+# differential expression analysis
+DEresults = results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+# sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue),]
+
+# convert to data frame
+DEresults <- as.data.frame(DEresults)
+
+# add a column to the data frame to specify if the genes are UP- or 
+# -DOWN- regulated (log2fc respectively positive or negative)
+DEresults$diffexpressed <- "NO" 
+
+# if log2Foldchange > 0.0 and pvalue < 0.05, set as "UP"
+DEresults$diffexpressed[DEresults$log2FoldChange > 0.0 & DEresults$pvalue < 0.05] <- "UP"
+
+# if log2Foldchange < 0.0 and pvalue < 0.05, set as "DOWN"
+DEresults$diffexpressed[DEresults$log2FoldChange < 0.0 & DEresults$pvalue < 0.05] <- "DOWN"
+
+# volcano plot
+volplot <- ggplot(data = DEresults, aes(x = log2FoldChange, y = -log10(pvalue), col = diffexpressed)) +
+  # add threshold lines
+  geom_vline(xintercept = c(-0.6, 0.6), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') + 
+  geom_point() + 
+  # to set the colours of our variable
+  scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), 
+                     # override and set the categories labels
+                     labels = c("Downregulated", "Not significant", "Upregulated")) + 
+  labs(color = "Diff Expression") +
+  ggtitle('Differential gene expression in "control" vs "case" samples')
+
+volplot + theme(text = element_text(size = 10)) 
+  
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have RNA-seq raw count data in file "SRP029880.raw_counts.txt" and the 
+respective experimental setup data in file "SRP029880.colData.txt".
+I would like to estimate per-gene dispersion estimate and visualize it 
+together with the fitted mean-dispersion relationship.
+How can I do this?
+
+completion:
+To perform and visualize differential expression analysis we will use 
+DESeq2 package and proceed as follow. 
+We read in our count data and experimental setup data using
+data.table::fread(), it reads large files faster. 
+Next we create a matrix out of the count data without the "width" column, 
+define the design formula as "group", to describe the variable of interest 
+for our differential expression analysis, "CASE" & "CTRL", which are in "group".
+Using the count matrix and the setup data we create a DESeq data set object
+using DESeqDataSetFromMatrix() function. Remove genes that have almost 
+no information in any of the given samples. Using DESeq() function we estimate 
+the size factors to normalize the counts, estimate the dispersion values, 
+and compute a GLM model based on the experimental design formula. 
+We the obtain a dispersion plot using plotDispEsts() function.
+
+```{r,eval=FALSE}
+
+library(DESeq2)
+
+# read the count data
+raw_counts <- as.data.frame(data.table::fread("SRP029880.raw_counts.txt", header=TRUE))
+rownames (raw_counts) <- raw_counts[, 1]
+raw_counts <- raw_counts[, -1]
+
+# create a matrix out of count data without the 'width' column
+countData <- as.matrix(subset(raw_counts, select = c(-width)))
+
+# read the experimental setup data
+colData <- as.data.frame(data.table::fread("SRP029880.colData.txt", header=TRUE))
+rownames(colData) <- colData [, 1]
+colData <- colData [, -1]
+
+# define the design formula
+designFormula <- "~ group"
+
+# create a DESeq dataset object from the count matrix and the colData 
+dds <- DESeqDataSetFromMatrix(countData = countData, 
+                              colData = colData, 
+                              design = as.formula(designFormula))
+
+# for each gene, we count the total number of reads for that gene in all samples 
+# -and remove those that don't have at least 1 read
+dds <- dds[ rowSums(DESeq2::counts(dds)) > 1, ]
+
+# estimate size factors, dispersion values, gene-wise dispersion,
+# -mean-dispersion relationship and computer a GLM model based on 
+# -experimental design formula
+dds <- DESeq(dds)
+
+# dispersion plot
+plotDispEsts(dds)
+
+```
+
+--- TASK END

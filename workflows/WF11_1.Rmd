@@ -1,0 +1,660 @@
+---
+title: "prompt/completion pairs chapter 11"
+author: "authors"
+date: "2023-10-30"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe holding gene expression data 
+called 'gene_exp'. I also have a dataframe with 
+annotation data called 'anno_dat'. The dataframe
+`gene_exp` has the columnnames which correspond
+to the rownames in `anno_dat`. How do I ensure that
+they have the same ordering?
+
+completion:
+To ensure that the column names in your gene expression dataframe
+'gene_exp' correspond to the row names in your annotation dataframe
+'anno_dat' and that they have the same ordering, you can use the 
+columnames of the 'gene_exp' dataframe to order the 'anno_dat'
+dataframe. Here is how:
+
+```{r,eval=FALSE}
+# Make ordering the same
+anno_dat <- anno_dat[colnames(gene_exp), ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe holding gene expression data 
+called 'gene_exp'. Columns represent 
+the samples, and the rows represent the features.
+I also have a dataframe with 
+annotation data called 'anno_dat'. The dataframe
+`gene_exp` has the columnnames which correspond
+to the rownames in `anno_dat`. I want to plot a 
+heatmap of my gene expression data, while annotating
+the columns with the data from the column `cms_label`
+from the `anno_dat` dataframe. How do I do this?
+
+completion:
+To create a heatmap of your gene expression data while annotating
+the columns with the data from the cms_label column of the anno_dat 
+dataframe in R, you can use the pheatmap function from the "pheatmap" 
+package. 
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+annotation <- anno_dat[, "cms_label", drop = FALSE]
+
+#plotting heatmap
+pheatmap::pheatmap(as.matrix(gene_exp),
+                   annotation_col = annotation,
+                   show_colnames = FALSE,
+                   show_rownames = FALSE,
+                   main = "Gene expression data")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe holding gene expression data 
+called 'gene_exp'. Columns represent 
+the samples, and the rows represent the features.
+I also have a dataframe with annotation data called 
+'anno_dat'. The dataframe `gene_exp` has the columnnames 
+which correspond to the rownames in `anno_dat`. 
+I want to plot a heatmap of my gene expression data, 
+while annotating the columns with the data from the 
+columns `cms_label` and 'gender' from the `anno_dat` 
+dataframe. How do I do this?
+
+completion:
+To create a heatmap of your gene expression data while annotating
+the columns with the data from the cms_label column of the anno_dat 
+dataframe in R, you can use the pheatmap function from the "pheatmap" 
+package. 
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+annotation <- anno_dat[, c("cms_label", "gender"), drop = FALSE]
+
+#plotting heatmap
+pheatmap::pheatmap(as.matrix(gene_exp),
+                   annotation_col = annotation,
+                   show_colnames = FALSE,
+                   show_rownames = FALSE,
+                   main="Gene expression data")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 3 dataframes called `mut`,`gene_exp` and `cnv`.
+These store omics data with columns representing samples,
+and rows representing different features. The ordering
+of the samples is the same across all dataframes. 
+How do I combine these forms of data to perform MFA?
+
+completion:
+To combine the data in dataframes `mut`, `gene_exp` and `cnv`
+which have the same columns that represent samples, we can make use
+of the `rbind` function to bind these dataframes together. 
+In MFA, you typically analyze the data with observations (samples) 
+in rows and variables (features) in columns. Therefore, 
+you can transpose the combined dataframe. You can then perform
+MFA using the `FactoMineR::MFA` function, specifying the
+dimensions of each omics type. The results are stored in 
+the variable `r_mfa`
+
+```{r,eval=FALSE}
+require (FactoMineR)
+
+# binding omics types together:
+omics <- rbind(gene_exp, mut, cnv)
+t_omics <- t(omics)
+
+# perform MFA
+r_mfa <- FactoMineR::MFA(
+  t_omics, #transpose matrix so features are columns
+  c(dim(gene_exp)[1], dim(mut)[1], dim(cnv)[1]), # specifying the dimensions of each omics type
+  graph = FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed MFA using the `FactoMineR::MFA` function.
+The results are stored in a variable called `r_mfa`.
+How do I extract the H-matrix from this analysis
+
+completion:
+To extract the H-matrix from the results of
+Multiple Factor Analysis (MFA) using the
+`FactoMineR::MFA` function, you can use 
+the `r_mfa$global.pca$ind$coord` component
+of `r_mfa`. Here is how you do it:
+
+```{r,eval=FALSE}
+# extract H-matrix from
+# Results of the Multiple Factor Analysis (MFA)
+h_matrix <- r_mfa$global.pca$ind$coord
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a H-matrix from my MFA analysis
+which has samples as rows and dimensions as columns.
+I want to plot the samples and the first 2 dimensions 
+in a heatmap, and annotate them using another dataframe I have
+called `anno_dat`, which has samples as rows and contains a column
+called 'cms_label' which I want to use for annotation. How 
+do I do this?
+
+completion:
+To plot the samples and the first two dimensions from your H-matrix 
+in a heatmap and annotate them using the 'cms_label' column from the 
+'anno_dat' dataframe, you can use the pheatmap package in R. 
+For annotating the samples we can use the `annotation_row`
+function. 
+
+```{r,eval=FALSE}
+pheatmap::pheatmap(h_matrix[ ,1:2],
+                   annotation_row = anno_dat[, "cms_label", drop=FALSE])
+
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a H-matrix from my MFA analysis
+which has samples as rows (and rownames correspond to sample name)
+and dimensions as columns. This is called `h_matrix`
+I want to plot the samples and the first 2 dimensions in a heatmap, and 
+annotate them using another dataframe I have called `anno_dat`, 
+which has samples as rows (and rownames correspond to 
+sample name) and contains a column called 'cms_label' which I want to use 
+for annotation. I want to present the heatmap in a way where samples which 
+have the same cms_label are next to eachother. How do I do this?
+
+completion:
+To plot the samples and the first two dimensions from your H-matrix 
+in a heatmap and annotate them using the 'cms_label' column from the 
+'anno_dat' dataframe, you can use the pheatmap package in R. 
+To ensure that samples with the same label get plotted next
+to eachoter, you can create a new dataframe called cms_label
+which holds the information of the `cms_label` column in `anno_dat`.
+This dataframe you can order based on label name, and use this 
+new ordering to order the H-matrix `h_matrix` as well.
+We can then plot the heatmap using the function `pheatmap`.
+For annotating the samples we can use the `annotation_row`
+function. To keep the same ordering you set in the dataframe, 
+you can set the argument `cluster_rows = FALSE`.
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+# extract column of interest for labeling
+cms_label <- anno_dat[ , "cms_label",drop = FALSE]
+
+# order based on labeling
+cms_label <- cms_label[order(cms_label$cms_label), , drop = FALSE]
+
+# order h_matrix based on ordering of
+# cms_label
+h_matrix <- h_matrix [rownames(cms_label), , drop = FALSE]
+
+# plot heatmap
+pheatmap::pheatmap(h_matrix[ ,1:2],
+                   annotation_row = cms_label,
+                   cluster_rows = FALSE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `mut`
+This stores omics data with columns representing samples,
+and rows representing different features. I 
+want to feature-normalize the data. How do I do this?
+
+completion:
+Feature normalization,is a process of rescaling each 
+feature of your data so that they have similar scales. 
+This is often done to ensure that features contribute 
+equally to the analysis and to prevent features with 
+larger scales from dominating the results. Since in 
+your dataframe features are represented as rows, 
+we can divide the dataframe `mut` by the rowsums of `mut`. 
+This divides each value in `mut` by its corresponding rowsum. 
+Here is how you do it:
+
+```{r,eval=FALSE}
+
+# Feature normalize data
+mut_featnorm <- mut / rowSums(mut)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `mut`
+This stores omics data with columns representing samples,
+and rows representing different features. I want to 
+normalize my data by its frobenius norm. How do I do this?
+
+completion:
+To normalize your omics data by its Frobenius norm,
+you can make use of the `norm` function. Using the 
+argument `type=F`, this will calculate the 
+Frobenius norm of the matrix `mut`. 
+
+```{r,eval=FALSE}
+library(matrixStats)
+
+# calculate Frobenius norm
+mut_frobnorm <- mut / norm(as.matrix(mut), type = "F")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 3 dataframes called 'x1','x2' and 'x3'.
+These hold information about different omics data. 
+Columns represent samples,and rows represent different 
+features. columnames are sample names and rownames are
+featurenames. The ordering of the samples is the same across 
+all dataframes. These dataframes are feature normalized and
+contain the Frobenius norm matrix. I now want to perform
+NMF. How do I do this?
+
+completion:
+NMF is a dimensionality reduction and factorization technique 
+that's commonly used in data analysis, particularly in omics data 
+analysis. To perform NMF, you need the `NMF` library. You mentioned 
+that 'x1', 'x2', and 'x3' are already feature-normalized and 
+contain the Frobenius norm matrix. Assuming that these dataframes 
+are already properly formatted, you can proceed to create an NMF 
+model using these data. Combine the three dataframes into a single 
+data matrix, as NMF typically works with a single data matrix. 
+Make sure that the column order (sample order) is consistent among the 
+dataframes. Assuming you want to analyze the data with observations 
+(samples) in rows and variables (features) in columns, we transpose the 
+dataframes. You need to specify the number of factors (also known as rank) 
+that you want the NMF algorithm to extract. This depends on your data and 
+objectives. The nmf function requires specifying the rank using the rank 
+parameter. You may need to experiment with different rank values to determine 
+the most informative factorization for your omics data.
+
+```{r,eval=FALSE}
+require(NMF)
+
+# perform NMF
+data <- rbind (x1,x2,x3)
+t_data <- t(data)
+
+# adjust as needed
+rank <- 2
+
+# perform  NMF
+r_nmf <- NMF::nmf(t_data,rank=rank, method="Frobenius")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed NMF using the `NMF::nmf` function.
+The results of this are stored in an object of class: NMFfit
+called `r_nmf`. I want to extract the H- and W-matrices
+from this. How do I do this?
+
+completion:
+To extract the H- and W-matrices from a 
+NMFfit object, you can make use of the 
+`basis` and `coef` functions from the NMF
+library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(NMF)
+
+# exctract the H and W matrices from the nmf run result
+nmf_h <- NMF::basis(r_nmf)
+nmf_w <- NMF::coef(r_nmf)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed NMF using the `NMF::nmf` function with a rank of 2.
+I extracted the H-matrix from this analysis called `h_matrix` 
+and now I want to create a scatterplot based on the 2
+dimensions or ranks which are held in the two columns 
+of this matrix. The rows of this matrix represent my samples.
+The rownames correspond to the sample names. I also have a dataframe 
+called `anno_dat`. This has samples represented as 
+rows (samplenames are rownames). There is a column in this dataframe 
+called `cms_label` which I want to use to annotate the points in the 
+scatterplot. How do I do this?
+
+completion:
+To create a scatterplot based on the two dimensions (ranks) from 
+the H-matrix obtained from NMF analysis and annotate the points using the 
+'cms_label' column from the 'anno_dat' dataframe, you can use the ggplot2 
+package. Here is how you do it:
+
+```{r,eval=FALSE}
+require(ggplot2)
+
+# extract the desired dims for plotting
+data_plot <- as.data.frame(h_matrix[, 1:2, drop = FALSE])
+
+# change colnames
+colnames(data_plot) <- c("dim1", "dim2")
+
+# extract labeling data
+labels <- anno_dat [,"cms_label",drop=FALSE]
+
+# ensure ordering of samples is the same:
+labels <- labels[rownames(data_plot), ,drop=FALSE]
+
+# plot scatterplot
+ggplot2::ggplot(data_plot,aes(x=dim1, y=dim2, color=labels[,"cms_label"])) +
+ggplot2::geom_point() +
+ggplot2::ggtitle("Scatter plot of 2 dim NMF")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 3 dataframes called 'x1','x2' and 'x3'.
+These hold information about different omics data. 
+Columns represent samples,and rows represent different 
+features. columnames are sample names and rownames are
+featurenames. The ordering of the samples is the same across 
+all dataframes. I want to perform iCluster+ analysis. The `x1`, 'x2'
+and 'x3' are from a gaussian, binomial and multinomial 
+distribution respectively. I would like to learn 2 factors.
+How do I do this?
+
+completion:
+iCluster+ is a statistical method used for integrative clustering of 
+multi-omics data. It can handle different types of data, including 
+Gaussian, binomial, and multinomial distributions. To perform iCluster+ 
+analysis in R with your 'x1,' 'x2,' and 'x3' dataframes, you can use the 
+iClusterPlus package. Make sure that the column order (sample order) is 
+consistent among the dataframes. Assuming you want to analyze the data 
+with observations (samples) in rows and variables (features) in columns, 
+the dataframes are transposed. Use the iClusterPlus function to perform the 
+analysis. Specify the data, data types, and the number of factors you want to learn 
+(in this case, 2 factors). 
+
+```{r,eval=FALSE}
+require(iClusterPlus)
+
+# transpose dataframe
+t_x1 <- as.matrix(t(x1))
+t_x2 <- as.matrix(t(x2))
+t_x3 <- as.matrix(t(x3))
+
+# run the iClusterPlus function
+r_icluster <- iClusterPlus::iClusterPlus(
+    t_x1,
+    t_x2,
+    t_x3,
+    type = c("gaussian", "binomial", "multinomial"), # Providing the distributions
+    K = 2) #providing the amount of factors to learn
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed iCluster+ analysis using the `iClusterPlus::iClusterPlus`
+function. The results I stored in a variable called `r_cluster`. I now
+want to extract the different cluster labels. How do I do this?
+
+completion:
+The iCluster_result contains various information about the clustering results, 
+including the factor loadings, sample cluster assignments, and more. You can explore and 
+interpret these results based on your research objectives. To access the cluster label 
+information, you can make use of the `$clusters` operator. Here is how you do it:
+
+```{r,eval=FALSE}
+# get cluster labels
+clus_lab <- r_icluster$clusters
+```
+
+--- TASK END
+
+## Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed iCluster+ analysis using the `iClusterPlus::iClusterPlus`
+function. The results I stored in a variable called `r_cluster`. I now
+want to extract the H- and W-matrices from this analysis. How do I 
+do this?
+
+completion:
+The iCluster_result contains various information about the clustering results, 
+including the factor loadings, sample cluster assignments, and more. You can explore and 
+interpret these results based on your research objectives. To access the H-matrix 
+you can make use of the `$meanZ` operator. To access the W-matrix, you can make
+use of the `$beta` operator. Here is how you do it:
+
+```{r,eval=FALSE}
+# Extract the H (z) matrix
+icluster_h <- r_icluster$meanZ
+
+# Extract the W matrix
+icluster_w <- r_icluster$beta
+```
+
+--- TASK END
+
+## Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed iCluster+ analysis using the `iClusterPlus::iClusterPlus`
+function. The results I stored in a variable called `r_cluster`. I want
+to make a scatterplot which plots the first two dimensions agains eachother,
+and annotate the points based on their clusterlabel. How do I do this?
+
+completion:
+The iCluster_result contains various information about the clustering results, 
+including the factor loadings, sample cluster assignments, and more. You can explore and 
+interpret these results based on your research objectives. To access the H-matrix 
+you can make use of the `$meanZ` operator. This matrix you can use to create the 
+scatterplot. To access the cluster label information, you can make use of the `$clusters` 
+operator. You can then use this information to annotate the scatterplot. 
+
+```{r,eval=FALSE}
+require (ggplot2)
+
+# Extract the H (z) matrix
+icluster_h <- as.data.frame(r_icluster$meanZ)
+
+# get cluster labels
+clus_lab <- as.factor(r_icluster$clusters)
+
+# plot first two dimensions in scatterplot
+# and annotate with cluster label
+ggplot2::ggplot(icluster_h, ggplot2::aes(x=V1, y=V2, color=clus_lab)) +
+ggplot2::geom_point() +
+ggplot2::ggtitle("Scatter plot of iCluster+ factors")
+```
+
+--- TASK END
+
+## Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed NMF using the `NMF::nmf` function.
+The results of this are stored in a, object of class: NMFfit
+called `r_nmf`. I want to make a label for the samples based on 
+which latent variable influences it the most. How do I do this?
+
+completion:
+To create sample labels based on which latent variable (factor) influences 
+each sample the most in the NMF analysis, you first need to extract the
+H matrix. The H matrix contains the loadings for each sample across
+the different dimensions. You can extract it from the NMFfit object using the 
+`basis` function. You can then create a list containing the labels by seeing which
+column holds the highest value for each sample. 
+
+```{r,eval=FALSE}
+# exctract the H matrix from the nmf run result
+nmf_h <- NMF::basis(r_nmf)
+
+# label based on which latent
+# variable influences it the most
+
+l_label <- c()
+for (i in 1:nrow(nmf_h)){
+    l_label <- c(l_label, which(max(nmf_h[i,])==nmf_h[i,]))
+}
+
+# provide sample name to label
+names(l_label) <- rownames(nmf_h)
+```
+
+--- TASK END
+
+## Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed NMF using the `NMF::nmf` function.
+The results of this are stored in a, object of class: NMFfit
+called `r_nmf`. I have extracted the H-matrix from this, which is
+in a variable called nmf_h. This has the samples as rows, and the dimensions
+as columns. I also have a list called 'l_label'. This has the samplenames
+as `names`. It holds the predicted label based on which latent 
+variable influences it the most. Furthermore, I also have a dataframe 
+called `anno_dat`. This has samples represented as 
+rows (samplenames are rownames). There is a column in this dataframe 
+called `cms_label`, which holds the actual labels.
+I would like to visualize the H-matrix in a heatmap, which shows the
+predicted group, as well as the actual label. How do I do this?
+
+completion:
+To create a heatmap of the H-matrix showing both the predicted group labels 
+(from the l_label list) and the actual labels (from the anno_dat dataframe), 
+you can use the pheatmap function. You first need to ensure that the order
+of samples is the same across all data. You can then create a new dataframe 
+for annotation of the rows when using the `pheatmap` function. 
+Here is how you do it:
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+# ensure ordering of samples is the same
+# as annotation dataframe
+nmf_h <- nmf_h [rownames(anno_dat), ,drop=FALSE]
+l_label <- l_label [rownames(anno_dat)]
+
+
+# create annotation dataframe
+annotation <- anno_dat [, "cms_label", drop=FALSE]
+colnames(annotation) <- "true_label"
+annotation$predicted_label <- as.factor(l_label)
+
+# plot heatmap:
+pheatmap::pheatmap (nmf_h,
+                    annotation_row = annotation,
+                    main = "Heatmap NMF analysis and annotation")
+```
+
+--- TASK END
+
+## Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed NMF using the `NMF::nmf` function.
+The results of this are stored in a, object of class: NMFfit
+called `r_nmf`. I have extracted the W-matrix from this, which is
+in a variable called nmf_w. This has the dimensions as rows (of which
+there are 2), and the features as columns. Column 1 to 500 holds features 
+which are genes. I want to select genes associated preferentially with 
+each dimension by their relative loading in the W matrix. I then
+want to find GO terms enriched in each dimension, and plot the results. 
+How do I do this?
+
+completion:
+To select genes associated preferentially with each dimension based on their 
+relative loading in the W matrix, find gene sets enriched in each dimension, 
+and plot the results, you first need to select the top genes for each 
+dimension (in this case 2). Performing gene set enrichment analysis can 
+be done using the `enrichR` tool. After finding enriched GO terms 
+you can plot the results using the `plotEnrich` function. 
+
+```{r,eval=FALSE}
+require(enrichR)
+
+# prepare lists for annotation
+gene_label <- c()
+
+# check which dimension holds max value
+for (i in 1:500){
+    gene_label <- c(gene_label,which (max(nmf_w[, i])==nmf_w[, i]))
+}
+
+# annotate with gene names
+names(gene_label) <- colnames(nmf_w)[1:500]
+
+# get names per factor
+factor_1 <- names(gene_label)[gene_label==1]
+factor_2 <- names(gene_label)[gene_label==2]
+
+# find enriched GO terms per factor
+go.factor.1 <- enrichR::enrichr(factor_1,
+                                databases = c("GO_Biological_Process_2018")
+                                )$GO_Biological_Process_2018
+
+go.factor.2 <- enrichR::enrichr(factor_2,
+                                databases = c("GO_Biological_Process_2018")
+                                )$GO_Biological_Process_2018                                
+
+
+#Plot enrichment table
+plotEnrich(go.factor.1, showTerms = 20, numChar = 40, y = "Count", orderBy = "P.value")
+plotEnrich(go.factor.2, showTerms = 20, numChar = 40, y = "Count", orderBy = "P.value")
+```
+
+--- TASK END

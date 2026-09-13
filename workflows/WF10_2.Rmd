@@ -1,0 +1,926 @@
+---
+title: "prompt/completion pairs chapter 10"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called 'test1.myCpG.txt' which holds information of 
+methylation status of different spots in the genome. Column 2 holds the 
+information of which chromosome it is, column 3 holds information of where 
+the read begins and ends, column 4 holds the information of which strand it 
+is from (indicated with F and R), column 5 holds the coverage information and 
+column 6 holds the frequency of C's from 0 to 100. I want to see if the methylation 
+status has a bimodal distribution as a way of checking the quality. 
+Furthermore, I would like to have a plot of the coverage values to see if there is 
+any PCR bias problem. How do I do this?
+
+completion:
+To check if the methylation status holds a bimodal distribution, we first 
+read in the data using the `methylKit::methRead` function. Here we specify 
+which columns hold what type of information using the `pipeline` argument. 
+Since the frequency column holds values from 0 to 100, we set the option 'fraction' 
+to false. To then check the quality of the data and see if it has a bimodal distribution, 
+we make use of the `methylKit::getMethylationStats` function. To create a coverage plot, 
+we make use of the `methylKit::getCoverageStats` function. 
+
+```{r,eval=TRUE}
+require(methylKit)
+
+# reading in data
+met_data_test <- methylKit::methRead(location = "test1.myCpG.txt",
+                                     sample.id = "test1", assembly="hg18",
+                                     pipeline = list(fraction = FALSE, start.col = 3, 
+                                                     end.col = 3, chr.col = 2,
+                                                     coverage.col = 5, strand.col = 4,
+                                                     freqC.col = 6))
+
+#Creating methylation status plot
+methylKit::getMethylationStats(met_data_test, plot=TRUE, both.strands=FALSE)
+
+#Creating coverage plot
+methylKit::getCoverageStats(met_data_test, plot=TRUE, both.strands=FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called 'test1.myCpG.txt' which holds information
+of methylation status of different spots in the genome. Column 2 holds
+the information of which chromosome it is, column 3 holds information
+of where the read begins and also ends, column 4 holds the information
+of which strand it is from (indicated with F and R), column 5 holds the
+coverage information and column 6 holds the frequency of C's from 0 to 100.
+I want to filter my data, so that reads with very low coverage (below 10X),
+and reads with abnormally high coverage (that have more than 99.9th percentile 
+of coverage) are discarded. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+Here we specify which columns hold what type of information using the 
+`pipeline` argument. Since the frequency column holds values from 0 to 100, 
+we set the option 'fraction' to false. To then filter the data and discard 
+bases with low coverage and abnormally high coverage, we make use of the 
+`methylKit::filterByCoverage` function. Since we want to filter out bases 
+with below 10 times coverage, we set the argument `lo.count = 10`. Alternatively, 
+if we would want to filter out bases which are below the 10th percentile, we could 
+make use of the `lo.percentage`argument. To filter out bases with abnormally high 
+coverage (above the 99.9th percentile) we `set hi.perc = 99.9`. Alternatively, 
+if we would want to filter on absolute count, we could make use of the `hi.count` argument. 
+
+```{r,eval=FALSE}
+# reading in data
+require(methylKit)
+met_data_test <- methylKit::methRead(location = "test1.myCpG.txt",
+                                     sample.id = "test1", assembly="hg18",
+                                     pipeline = list(fraction = FALSE, start.col = 3, 
+                                                     end.col = 3, chr.col = 2,
+                                                     coverage.col = 5, strand.col = 4,
+                                                     freqC.col = 6))
+
+#filtering the data
+filtered_test <- filterByCoverage(met_data_test,lo.count=10,lo.perc=NULL,
+                               hi.count=NULL,hi.perc=99.9)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome.
+Column 2 holds the information of which chromosome it is, 
+column 3 holds information of where the read begins and ends, 
+column 4 holds theinformation of which strand it is from 
+(indicated with F and R), column 5 holds the coverage information 
+and column 6 holds the frequency of C's from 0 to 100.
+The first two files are from test samples, whereas the other 
+files are from control samples. I want a way to unite these files 
+to one data structure where only bases are present which where covered 
+in either both sample groups or both control groups. 
+I then want to see how much of a difference there is between the 
+methylation percentages across all the different files, to see how much the 
+test1, test2, control1 and control2 files agree. I want to do this by plotting 
+a histogram with the standard deviation of the percentages across the files. 
+How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files we 
+want to use. To ensure we mark files as test or control, we make use of 
+the `treatment` argument. We also specify which columns hold what type of 
+information using the `pipeline` argument. Since the frequency column holds 
+values from 0 to 100, we set the option 'fraction' to false. We unite our files 
+to one big dataframe where only bases are present which are covered in either 
+the two sample groups or both control groups using the `methylkit::unite` function 
+using the argument `min.per.group = 2 L` to ensure that only bases are kept which are in 
+2/2 files of the sample files and 2/2 files of the control files. To then visualize the 
+difference between methylation percentages across the different files, we create a percent 
+methylation matrix using the `methylKit::percMethylation` function. The standard deviation 
+of the percentage is calculated using `matrixStats::rowSds` and this is used to plot the 
+histogram. 
+
+```{r,eval=TRUE}
+require(methylKit)
+require(matrixStats)
+
+#reading in data:
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt", "control1.myCpG.txt", "control2.myCpG.txt" )
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"), assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite to one big dataframe where there are only bases which are covered in all files:
+data_united <- methylKit::unite(data, destrand = FALSE, min.per.group = 2L) #argument 2L ensures only bases are added which are found in at least 2 files per treatment
+
+pm <- methylKit::percMethylation(data_united) # get percent methylation matrix
+mds <- matrixStats::rowSds(pm) # calculate standard deviation of CpGs
+
+#plot histogram
+hist(mds,col="#d98adb",xlab="Std. dev. (%) per CpG")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3
+ holds information of where the read begins and ends, column 4 holds the
+information of which strand it is from (indicated with F and R), column 
+5 holds the coverage information and column 6 holds the frequency of C's 
+from 0 to 100.The first two files are from test samples, whereas the 
+other files are from control samples.I want to filter my data, so that 
+reads with very low coverage (below 10X), and reads with abnormally high 
+coverage (that have more than 99.9th percentile of coverage) are discarded. 
+I want then want a way to unite these files to one data structure where only 
+bases are present which where convered in either both sample groups or both 
+control groups. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files we 
+want to use. To ensure we mark files as test or control, we make use of 
+the `treatment` argument. We also specify which columns hold what type 
+of information using the `pipeline` argument. Since the frequency column 
+holds values from 0 to 100, we set the option 'fraction' to false. To then 
+filter the data and discard bases with low coverage and abnormally high 
+coverage, we make use of the `methylKit::filterByCoverage` 
+function. Since we want to filter out bases with below 10 times coverage, 
+we set the argument `lo.count = 10`. Alternatively, if we would want to 
+filter out bases which are below the 10th percentile, we could make use of 
+the `lo.percentage` argument. To filter out bases with abnormally high 
+coverage (above the 99.9th percentile) we `set hi.perc = 99.9`. Alternatively, 
+if we would want to filter on absolute count, we could make use of the `hi.count` 
+argument. We unite our files to one big dataframe where only bases are present 
+which are covered in either the two sample groups or both control groups 
+using the `methylkit::unite` function using the argument `min.per.group = 2 L` 
+to ensure that only bases are kept which are in 2/2 files of the sample files and
+2/2 files of the control files. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# reading in data:
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3,
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+# filtering the data
+filtered_data <- methylKit::filterByCoverage(data, lo.count = 10, lo.perc = NULL,
+                                  hi.count = NULL,
+                                  hi.perc = 99.9)
+
+# unite files to one datastructure
+#argument 2L ensures only bases are added which are found in at least 2 files per treatment
+data_united <- methylKit::unite(data, destrand = FALSE, min.per.group = 2L) 
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, 
+column 3 holds information of where the read begins and ends, 
+column 4 holds theinformation of which strand it is from 
+(indicated with F and R), column 5 holds the coverage information 
+and column 6 holds the frequency of C's from 0 to 100.The first two 
+files are from test samples, whereas the other files are from control 
+samples. I want to unite these files to one dataframe and then
+filter out positions which I know hold a C -> T mutation which does 
+not come from the bisulfite-treatment. The positions I want to filter 
+out lie on chromosome 21 (chr21) between start and end at positions 9853296 
+and 10000000 respectively. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make use of 
+the `location`argument where we will pass a list with files we want to use. 
+To ensure we mark files as test or control, we make use of the `treatment` argument. 
+We also specify which columns hold what type of information using the 
+`pipeline` argument. Since the frequency column holds values from 
+0 to 100, we set the option 'fraction' to false. We unite our files 
+to one big dataframe where only bases are present which are covered 
+in either the two sample groups or both control groups using the 
+`methylkit::unite` function using the argument `min.per.group = 2 L` 
+to ensure that only bases are kept which are in 2/2 files of the 
+sample files and 2/2 files of the control files. To then filter 
+out the positions that lie on chr21 which start and end at position 
+9853296 and 10000000, we make use of a Granges object. We use this for 
+filtering out our positions of interest. 
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+require(methylKit)
+
+#reading in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE) 
+
+# Position to be deleted
+mut=GenomicRanges::GRanges(seqnames=c("chr21"),
+                           ranges=IRanges(start=c(9853296),
+                                          end=c(10000000)))
+
+# select CpGs that do not overlap with mutations
+data_filtered <- data_united[! as(data_united,"GRanges") %over% mut, ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 
+3 holds information of where the read begins and ends, column 4 
+holds theinformation of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the frequency 
+of C's from 0 to 100. The first two files are from test samples, whereas 
+the other files are from control samples. I want to see if the results 
+from the test files and the control files cluster together, as a way of 
+looking at how similar they are. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files 
+we want to use. To ensure we mark files as test or control, we make 
+use of the `treatment` argument. We also specify which columns hold 
+what type of information using the `pipeline` argument. Since the 
+frequency column holds values from 0 to 100, we set the option 
+'fraction' to false. We unite our files to one big dataframe where 
+only bases are present which are covered in either the two sample 
+groups or both control groups using the `methylkit::unite` function 
+using the argument `min.per.group = 2 L`. To cluster the information 
+given in the different files, we make use of the `methylkit::ClusterSamples` 
+function. This function will cluster the samples and draw a dendrogram. 
+It will use correlation distance, which is 1-p where p is the correlation 
+coefficient between two pairs of samples. The cluster tree will be drawn 
+using the “ward” method. This specific variant uses a “bottom up” approach: 
+each data point starts in its own cluster, and pairs of clusters are merged 
+as one moves up the hierarchy. In Ward's method, two clusters are merged if 
+the variance is minimized compared to other possible merge operations.
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#reading in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#Cluster samples and show dendogram
+methylKit::clusterSamples(data_united, dist="correlation", method="ward", plot=TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the 
+genome. Column 2 holds the information of which chromosome 
+it is, column 3 holds information of where the read begins and ends, 
+column 4 holds the information of which strand it is from 
+(indicated with F and R), column 5 holds the coverage information 
+and column 6 holds the frequency of C's from 0 to 100.
+The first two files are from test samples, whereas the other 
+files are from control samples. I want to perform PCA on the 
+variables that are regions/bases, and visualize the results 
+in a scatterplot to see if sample and control groups are similar. 
+How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files 
+we want to use. To ensure we mark files as test or control, we make use 
+of the `treatment` argument. We also specify which columns hold what 
+type of information using the `pipeline` argument. Since the frequency 
+column holds values from 0 to 100, we set the option 'fraction' to false. 
+We unite our files to one big dataframe where only bases are present which 
+are covered in either the two sample groups or both control groups 
+using the `methylkit::unite` function using the argument `min.per.group = 2 L`. 
+To perform PCA on the variables that are regions/bases we can make use of the
+`methylKit::PCASamples` function. Alternatively, we could extract the 
+percent methylation matrix and perform PCA on this transposed matrix 
+using the `prcomp` function. Using the `methylKit::PCASamples` function 
+however filters low variation regions before PCA analysis automatically, 
+which might be beneficial when performing further methylation analysis. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# reading in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#perform PCA
+pc <- methylKit::PCASamples(data_united,obj.return = TRUE, adj.lim=c(1,1))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3 
+holds information of where the read begins and ends, column 4 holds 
+the information of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the frequency 
+of C's from 0 to 100. The first two files are from test samples, whereas 
+the other files are from control samples. I want to see if there are any 
+differentially methylated regions when comparing the results from the test 
+samples to the control samples. For this I want to perform a fishers exact 
+test. I want the control and test samples to have at least a methylation 
+difference of 25% before they are called significantly different, and I also 
+want the cutoff for the q-value to be 0.01. I then also want to investigate 
+which regions are hypomethylated and which regions are hypermethylated when 
+compared to the control. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files 
+we want to use. To ensure we mark files as test or control, we make 
+use of the `treatment` argument. We also specify which columns hold 
+what type of information using the `pipeline` argument. Since the 
+frequency column holds values from 0 to 100, we set the option 
+'fraction' to false. We unite our files to one big dataframe where 
+only bases are present which are covered in either the two sample groups 
+or both control groups using the `methylkit::unite` function using 
+the argument `min.per.group = 2 L`. Differential DNA methylation is 
+usually calculated by comparing the proportion of methylated Cs in a 
+test sample relative to a control. In simple comparisons 
+between such pairs of samples (i.e. test and control), methods such 
+as Fisher's exact test can be used. If there are replicates, replicates 
+can be pooled within groups to a single sample per group. This entails 
+adding up the number of Cs and Ts per group. We can do this using the 
+`methylKit::pool` function. This way even if we have replicated experiments 
+we treat them as single experiments, and can apply Fisher's exact test. 
+We will then apply the `methylKit::calculateDiffMeth()` function, which 
+will return the p-value and q-values for all bases or regions in the input 
+methylBase object. We need to filter to get differentially methylated CpGs. 
+This can be done via the `methylKit::getMethlyDiff()` function
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#reading in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#pool data for differential methylation analysis
+pooled_data <- methylKit::pool(data_united, sample.ids = c("test", "control"))
+
+#perform fishers exact test for each base:
+dm.pooledf <- methylKit::calculateDiffMeth(pooled_data)
+
+#get differentially methylated positions:
+all.diff <- methylKit::getMethylDiff(dm.pooledf,difference=25,qvalue=0.01,type="all")
+
+#get hypomethylated regions:
+hypo.diff <- methylKit::getMethylDiff(dm.pooledf,difference=25,qvalue=0.01,type="hypo")
+
+#get hypermethylated regions:
+hypo.diff <- methylKit::getMethylDiff(dm.pooledf,difference=25,qvalue=0.01,type="hyper")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3 
+holds information of where the read begins and ends, column 4 holds 
+theinformation of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the frequency 
+of C's from 0 to 100. The first two files are from test samples, whereas 
+the other files are from control samples. I want to see if there are any 
+differentially methylated regions when comparing the results from the 
+test samples to the control samples. For this, I want to use the logistic 
+regression based Chi-square test with correction for 
+overdispertion. How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files 
+we want to use. To ensure we mark files as test or control, we make use 
+of the `treatment` argument. We also specify which columns hold what 
+type of information using the `pipeline` argument. Since the frequency 
+column holds values from 0 to 100, we set the option 
+'fraction' to false. We unite our files to one big dataframe where 
+only bases are present which are covered in either the two sample groups 
+or both control groups using the `methylkit::unite` function using the 
+argument `min.per.group = 2 L`. To perform the regression based Chi-square 
+test with correction for overdispersion, we can make use of the 
+`methylKit::calculateDiffMeth` function. This will report back, 
+the p-value, q-value and methylation difference for further analysis.
+
+```{r,eval=FALSE}
+require (methylKit)
+
+# load in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+# unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+# perform Chi-square test with overdispersion correction
+dm_lr <- methylKit::calculateDiffMeth(data_united,overdispersion = "MN",test ="Chisq")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3 
+holds information of where the read begins and ends, column 4 holds 
+the information of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the frequency 
+of C's from 0 to 100. The first two files are from test samples, whereas 
+the other files are from control samples. I want to see if there are any 
+differentially methylated regions when comparing the results from the 
+test samples to the control samples. For this, I want to use a 
+Betabinomial-distribution-based test namely DSS.  How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files we want 
+to use. To ensure we mark files as test or control, we make use of the 
+`treatment` argument. We also specify which columns hold what type of 
+information using the `pipeline` argument. Since the frequency column 
+holds values from 0 to 100, we set the option 'fraction' to false. 
+We unite our files to one big dataframe where only bases are present 
+which are covered in either the two sample groups or both control groups 
+using the `methylkit::unite` function using the argument `min.per.group = 2 L`. 
+To perform DDS, we can make use of the `methylKit::calculateDiffMethDSS` 
+function. This will report back, the p-value, q-value and methylation 
+difference for further analysis.
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#load in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#perform Betabinomial-distribution-based test DSS.
+dm_dss <- methylKit::calculateDiffMethDSS(data_united)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 5, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3 
+holds information of where the read begins and ends, column 4 holds the
+information of which strand it is from (indicated with F and R), column 5 
+holds the coverage information and column 6 holds the frequency of C's 
+from 0 to 100. The first two files are from test samples, whereas the other 
+files are from control samples. The rows represent basepairs. 
+I however want to work not with individual bases, but with genomic regions 
+of 1000 bp long. I also do not want them to overlap at all. 
+I then would like to extract certain regions that I am interested in 
+which are held in a file called 'refseq.hg18.bed.txt'. 
+This is a BED file which holds the info on which regions are exons, 
+introns, promoters or intergenic regions. I want to extract the regions 
+which correspond to promotor regions.
+How do I process my data so that I can do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make use 
+of the `location` argument where we will pass a list with files we want 
+to use. To ensure we mark files as test or control, we make use of the 
+`treatment` argument. We also specify which columns hold what type of 
+information using the `pipeline` argument. Since the frequency column 
+holds values from 0 to 100, we set the option 'fraction' to false. To then 
+convert the base pair information to genomic regions, we make use of the 
+`methylKit::tileMethylCounts` function. This function adds up C and T counts 
+from each covered cytosine and returns a total C and T count for each region. 
+To read in the BED data file we make use of the `genomation::readTranscriptFeatures` 
+function. We then use the output of this function to filter our data for 
+the regions of interest. 
+
+```{r,eval=FALSE}
+require (methylKit)
+require(genomation)
+
+#load in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+bed_data <- genomation::readTranscriptFeatures("refseq.hg18.bed.txt")
+
+#divide into genomic regions of 1000 basepairs
+#setting stepsize to 1000 ensures we have no overlapping regions
+gen_reg <- methylKit::tileMethylCounts(data,win.size=1000,step.size=1000) 
+
+#extract regions of interest using BED data
+reg_int <- regionCounts(gen_reg, bed_data$promoters)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:data wrangling |  ML/Stats , numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the genome. 
+Column 2 holds the information of which chromosome it is, column 3 
+holds information of where the read begins and ends, column 4 holds the
+information of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the 
+frequency of C's from 0 to 100.The first two files are from test samples, 
+whereas the other files are from control samples. The rows represent basepairs. 
+The age of the sample in the first file is 30. The others have an age of 80,
+34 and 75 respectively. I want to include this covariate in my test to see if 
+there are any differentially methylated regions when comparing the results 
+from the test samples to the control samples. For this, I want to use the 
+logistic regression based Chi-square test with correction for overdispertion. 
+How do I do this?
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files w
+e want to use. To ensure we mark files as test or control, we make use 
+of the `treatment` argument. We also specify which columns hold what 
+type of information using the `pipeline` argument. Since the frequency 
+column holds values from 0 to 100, we set the option 'fraction' to false. 
+We unite our files to one big dataframe where only bases are present which 
+are covered in either the two sample groups or both control groups 
+using the `methylkit::unite` function using the argument `min.per.group = 2 L`. 
+To perform the regression based Chi-square test with correction for 
+overdispersion, we can make use of the `methylKit::calculateDiffMeth` function. 
+This will report back, the p-value, q-value and methylation difference for further 
+analysis. To include the covariate age, we make a dataframe out of the age 
+information. We then pass this to the `methylKit::calculateDiffMeth` function 
+using the `covariates = covariates` argument. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#load in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#define covariate age for all files
+covariates <- data.frame(age=c(30, 80, 34, 75))
+
+#perform Chi-square test with correction for overdispersion
+my_diffmet <- methylKit::calculateDiffMeth(data_united,
+                                           covariates = covariates,
+                                           overdispersion = "MN",
+                                           test = "Chisq")
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 6, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 4 files called 'test1.myCpG.txt', 'test2.myCpG.txt', 
+'control1.myCpG.txt' and 'control2.myCpG.txt' which holds 
+information of methylation status of different spots in the
+human genome. Column 2 holds the information of which chromosome 
+it is, column 3 holds information of where the read begins and ends, 
+column 4 holds theinformation of which strand it is from (indicated with F and R), 
+column 5 holds the coverage information and column 6 holds the frequency of 
+C's from 0 to 100.The first two files are from test samples, whereas the 
+other files are from control samples. The rows represent basepairs. 
+I would like to test for differentially methylated regions 
+between my test and control groups, using fishers exact test. 
+I want the control and test samples to have at least a methylation difference 
+of 25% before they are called significantly different, and I also want the 
+cutoff for the q-value to be 0.01. 
+I then would like to annotate these regions that I am interested in. 
+For this I have the file 'refseq.hg18.bed.txt'. This is a BED file,  which
+holds the info on which regions are exons, introns, promoters or intergenic 
+regions. I want to know if the regions that are differentially methylated 
+are often part of introns, exons promotor or intergenic regions.
+
+I would also like to investigate the annotation when considering CpG island 
+annotation. For this I have a file called 'cpgi.hg18.bed.txt'. This is a BED file.
+It holds the information which regions of the genome are  CpGi and which are shores. 
+
+Finally I would like to use the information of the the file 
+'refseq.hg18.bed.txt' to not only know if regions are part of 
+introns, exons or intergenic regions, but I also want to know 
+if exons or introns are differentially methylated, which genes 
+are effected by this. How do I do this?
+
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+To ensure the data from different files is processed as one, we make 
+use of the `location` argument where we will pass a list with files 
+we want to use. To ensure we mark files as test or control, we make 
+use of the `treatment` argument. We also specify which columns hold 
+what type of information using the `pipeline` argument. Since the 
+frequency column holds values from 0 to 100, we set the option 
+'fraction' to false. We unite our files to one big dataframe where 
+only bases are present which are covered in either the two sample groups 
+or both control groups using the `methylkit::unite` function using 
+the argument `min.per.group = 2 L`.Saples are then pooled using 
+the `methylKit::pool` function. This way even if we have replicated 
+experiments we treat them as single experiments, and can apply Fisher's 
+exact test. We will then apply the `methylKit::calculateDiffMeth()` 
+function, which will return the results from the Fisher's exact test 
+including the p-value and q-values for all bases or regions 
+in the input methylBase object. We need to filter to get differentially 
+methylated CpGs. This can be done via the `methylKit::getMethlyDiff()` function. 
+After filtering, we annotate our differentially methylated basepairs 
+using the BED file. This we can do using the `enomation::annotateWithGeneParts` 
+function, which will return the percentage of target features overlapping with 
+promotor, exon, intron and intergenic regions. 
+To find out which genes are differentially methylated, we make use of the 
+'refseq.hg18.bed.txt' file. We match our differentially methylated regions to
+exons and/or introns in this file. Next we map these introns and exons 
+back to genes by making use of the `org.Hs.eg` database. 
+This information we can use to extract the refseq names from our 
+differentially methylated regions, and match them to their gene names. 
+
+```{r,eval=FALSE}
+require(methylKit)
+require(genomation)
+require(GenomicFeatures)
+require(org.Hs.eg.db)
+require(RSQLite)
+
+#load in data
+file.list <- list("test1.myCpG.txt", "test2.myCpG.txt",
+                  "control1.myCpG.txt", "control2.myCpG.txt")
+
+data <- methylKit::methRead(location = file.list,
+                            sample.id = list("test1","test2","control1","control2"),
+                            assembly="hg18",
+                            pipeline = list(fraction = FALSE, start.col = 3, 
+                                            end.col = 3, chr.col = 2,
+                                            coverage.col = 5, strand.col = 4,
+                                            freqC.col = 6),
+                            treatment=c(1,1,0,0)) #treatment indicates whether file is a test (1) or control (0) file
+
+anno <- genomation::readTranscriptFeatures ("refseq.hg18.bed.txt")
+
+cpg <- genomation::readFeatureFlank ("cpgi.hg18.bed.txt", feature.flank.name=c("CpGi","shores"))
+
+#unite files to one datastructure
+data_united <- methylKit::unite(data, destrand = FALSE)
+
+#pool data for differential methylation analysis
+pooled_data <- methylKit::pool(data_united,sample.ids=c("test", "control"))
+
+#perform fishers exact test for each base:
+dm.pooledf <- methylKit::calculateDiffMeth(pooled_data)
+
+#get differentially methylated positions:
+all.diff <- methylKit::getMethylDiff(dm.pooledf,difference=25,qvalue=0.01,type="all")
+
+#annotate all parts as belonging to introns, exons, etc.
+genomation::annotateWithGeneParts(as(all.diff,"GRanges"),anno)
+
+#annotate with CpG islands
+genomation::annotateWithFeatureFlank(as(all.diff,"GRanges"), cpg$CpGi,cpg$shores,
+                         feature.name="CpGi",flank.name="shores")
+
+
+#find out on which genes differential methylation took place:
+## Get the database connection
+dbcon <- org.Hs.eg_dbconn()
+refseq <- dbGetQuery(dbcon, "select * from refseq")
+gene_name <- dbGetQuery(dbcon, "select * from gene_info")
+overlap_exon <- findOverlaps(GRanges(anno$exons),as(all.diff,"GRanges"))
+overlap_intron <- findOverlaps(GRanges(anno$introns),as(all.diff,"GRanges"))
+
+#genes which are differentially methylated in introns
+intron_nr <- unique(as.data.frame(overlap_intron)[,"queryHits"])
+ref_int <- as.data.frame(anno$introns)[intron_nr,"name"]
+overlap_int <- which(refseq[,"accession"] %in% intersect(refseq[,"accession"], ref_int))
+intron_genes<-unique(gene_name[refseq[overlap_int,"_id"],"gene_name"])
+
+#genes which are differentially methylated in exons
+exon_nr <- unique(as.data.frame(overlap_exon)[,"queryHits"])
+ref_ex <- as.data.frame(anno$exons)[exon_nr,"name"]
+overlap_ex <- which(refseq[,"accession"] %in% intersect(refseq[,"accession"], ref_ex))
+ex_genes<-unique(gene_name[refseq[overlap_ex,"_id"],"gene_name"])
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I would like to perform methylation segmentation analysis on my file 
+"test1.myCpG.txt". This holds methylation information from chromosome
+21. Column 2 holds the information of which chromosome it is, column 
+3 holds information of where the read begins and ends, column 4 holds the
+information of which strand it is from (indicated with F and R), column 5 
+holds the coverage information and column 6 holds the frequency of C's from 0 to 100.
+I want to see if there are distinct methylation regions within this sample, and if so 
+I want to investigate the methylation value per group and the length of the segment 
+as a scatter plot.
+
+completion:
+We first read in the data using the `methylKit::methRead` function. 
+Here we specify which columns hold what type of information using the 
+`pipeline` argument. Since the frequency column holds values from 0 to 100, 
+we set the option 'fraction' to false. We convert our data into a GRange object, 
+and then we partition the GRange object into different methylated segments using the 
+`methylKit::methSeg` function. To then investigate the methylation value and 
+length of segments using a scatterplot, we plot the mean methylation proportion against 
+the log length of the segment. 
+
+```{r,eval=FALSE}
+require(methylKit)
+require(GenomicRanges)
+
+#reading in data
+met_data_test <- methylKit::methRead(location = "test1.myCpG.txt",
+                                     sample.id = "test1", assembly="hg18",
+                                     pipeline = list(fraction = FALSE, start.col = 3, 
+                                                     end.col = 3, chr.col = 2,
+                                                     coverage.col = 5, strand.col = 4,
+                                                     freqC.col = 6))
+
+#convert to GRange object
+met <- GenomicRanges::GRanges(met_data_test)
+
+#perform methylation segmentation analysis
+res <- methylKit::methSeg(met)
+
+#create plot
+plot(res$seg.mean,
+     log10(width(res)),pch=20,
+     col=scales::alpha(rainbow(4)[as.numeric(res$seg.group)], 0.8),
+     ylab="log10(length)",
+     xlab="methylation proportion")
+```
+
+--- TASK END

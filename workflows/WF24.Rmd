@@ -1,0 +1,1158 @@
+---
+title: "prompt/completion pairs single-cell_basic_chapter 4"
+author: "authors"
+date: "2023-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Moreover, I would like to reduce random noise and 
+dimensions in my data by performing PCA. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields.
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+# confirm storage of first 50 PCs
+dim(reducedDim(sce.zeisel, "PCA"))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Since I am working with large data set, how can I 
+perform PCA to reduce random noise and dimensions in my data?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+For large data sets, greater efficiency is obtained by using approximate SVD 
+algorithms that only compute the top PCs. By default, most PCA-related functions
+in scater and scran will use methods from the irlba or rsvd packages to perform
+the SVD. We can explicitly specify the SVD algorithm to use by passing an
+BiocSingularParam object to the BSPARAM= argument. Many of these approximate 
+algorithms are based on randomization and thus require set.seed() to obtain 
+reproducible results.
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+library(BiocSingular)
+# set seed
+set.seed(1000)
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel, 
+    BSPARAM=RandomParam(), name="randomized")
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). As I am working with large data set I would like to 
+perform PCA to reduce random noise and dimensions in my data. Following which 
+how can I decide on the number of principle components to retain?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+For large data sets, greater efficiency is obtained by using approximate SVD 
+algorithms that only compute the top PCs. By default, most PCA-related functions
+in scater and scran will use methods from the irlba or rsvd packages to perform
+the SVD. We can explicitly specify the SVD algorithm to use by passing an
+BiocSingularParam object to the BSPARAM= argument. Many of these approximate 
+algorithms are based on randomization and thus require set.seed() to obtain 
+reproducible results.
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+Now, the choice of the number of PCs d is a decision that is analogous to the 
+choice of the number of HVGs to use. Using more PCs will retain more biological
+signal at the cost of including more noise that might mask said signal. On the
+other hand, using fewer PCs will introduce competition between different factors
+of variation, where weaker (but still interesting) factors may be pushed down 
+into lower PCs and inadvertently discarded from downtream analyses.
+Much like the choice of the number of HVGs, it is hard to determine whether an 
+“optimal” choice exists for the number of PCs. Certainly, we could attempt to 
+remove the technical variation that is almost always uninteresting. However, 
+even if we were only left with biological variation, there is no straightforward
+way to automatically determine which aspects of this variation are relevant. 
+One analyst’s biological signal may be irrelevant noise to another analyst with 
+a different scientific question. Most practitioners will simply set d to a 
+“reasonable” but arbitrary value, typically ranging from 10 to 50. This is often
+satisfactory as the later PCs explain so little variance that their inclusion 
+or omission has no major effect.
+For example, in the Zeisel dataset used for demo here, few PCs explain more than
+1% of the variance in the entire dataset (Figure) and choosing between, say, 20 
+and 40 PCs would not even amount to four percentage points’ worth of difference 
+in variance. In fact, the main consequence of using more PCs is simply that 
+downstream calculations take longer as they need to compute over more 
+dimensions, but most PC-related calculations are fast enough that this is not 
+a practical concern.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+library(BiocSingular)
+# set seed
+set.seed(1000)
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel, 
+    BSPARAM=RandomParam(), name="randomized")
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+# extract percentage of variance explained by successive PCs for visualization
+percent.var <- attr(reducedDim(sce.zeisel), "percentVar")
+
+# visualize percentage variance on log scale
+plot(percent.var, log="y", xlab="PC", ylab="Variance explained (%)")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Using the selected HVGs I would like to perform PCA to 
+reduce random noise and dimensions in my data. Moreover, I would like to use the 
+first two PCs to visualize the resolution of difference between subpopulations. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+To visualize the first two PCs we can make use of plotReducedDim() function 
+from scater package. In demo plot each point represents a cell, colored 
+according to the published annotation.
+The problem is that PCA is a linear technique, i.e., only variation along a line
+in high-dimensional space is captured by each PC. As such, it cannot efficiently 
+pack differences in d dimensions into the first 2 PCs. This is demonstrated in 
+demo Figure where the top two PCs fail to resolve some subpopulations identified 
+by Zeisel et al. (2015). If the first PC is devoted to resolving the biggest 
+difference between subpopulations, and the second PC is devoted to resolving the 
+next biggest difference, then the remaining differences will not be visible in 
+the plot.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+library(scater)
+# visualize the first two PCs
+plotReducedDim(sce.zeisel, dimred="PCA", colour_by="level1class")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Using the selected HVGs I would like to perform PCA to 
+reduce random noise and dimensions in my data. Moreover, I would like to use the 
+first few PCs to visualize the resolution of difference between subpopulations. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+To visualize the PCs we can make use of plotReducedDim() function from scater 
+package. In demo plot each point represents a cell, colored according to the 
+published annotation.
+However, the problem is that PCA is a linear technique, i.e., only variation 
+along a line in high-dimensional space is captured by each PC. As such, it 
+cannot efficiently pack differences in d dimensions into the first 2 PCs. This 
+is demonstrated in demo Figure where the top two PCs fail to resolve some 
+subpopulations identified by Zeisel et al. (2015). If the first PC is devoted 
+to resolving the biggest difference between subpopulations, and the second PC 
+is devoted to resolving the next biggest difference, then the remaining 
+differences will not be visible in the plot.
+One workaround is to plot several of the top PCs against each other in pairwise 
+plots. However, it is difficult to interpret multiple plots simultaneously, and 
+even this approach is not sufficient to separate some of the annotated 
+subpopulations in the example shown.
+Thus, plotting the top few PCs is not satisfactory for visualization of complex 
+populations. That said, the PCA itself is still of great value in visualization 
+as it compacts and denoises the data prior to downstream steps. The top PCs are 
+often used as input to more sophisticated (and computationally intensive) 
+algorithms for dimensionality reduction.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+library(scater)
+# pairwise visualization of the first four PCs 
+plotReducedDim(sce.zeisel, dimred="PCA", ncomponents=4,
+    colour_by="level1class")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Moreover, I would like to visualize my scRNA-seq data
+using t-stochastic neighbour embedding method.  
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+The de facto standard for visualization of scRNA-seq data is the t-stochastic 
+neighbor embedding (t-SNE) method. This attempts to find a low-dimensional 
+representation of the data that preserves the distances between each point and 
+its neighbors in the high-dimensional space. Unlike PCA, it is not restricted 
+to linear transformations, nor is it obliged to accurately represent distances 
+between distant populations. This means that it has much more freedom in how it 
+arranges cells in low-dimensional space, enabling it to separate many distinct 
+clusters in a complex population.
+We can use runTSNE from scater package to compute t-SNE coordinates.  
+One of the main disadvantages of t-SNE is that it is much more computationally 
+intensive than other visualization methods. We mitigate this effect by setting 
+dimred="PCA" in runTSNE(), which instructs the function to perform the t-SNE 
+calculations on the top PCs of sce. This exploits the data compaction and noise 
+removal of the PCA for faster and cleaner results in the t-SNE. It is also 
+possible to run t-SNE on the original expression matrix but this is less 
+efficient.
+Another issue with t-SNE is that it requires the user to be aware of additional 
+parameters. It involves a random initialization so we need to set the seed to 
+ensure that the chosen results are reproducible. We may also wish to repeat the 
+visualization several times to ensure that the results are representative.
+To be able to insturuct runTSNE() to perform the t-SNE calcualtion on the top 
+PCs, we first need to perform principal components analysis (PCA) on the data. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+To visualize the t-SNE plots constructed from the top PCs we can use 
+plotReducedDim() function from scater package. In demo plot each point 
+represents a cell, colored according to the published annotation.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+set.seed(00101001101)
+
+# store the t-SNE coordinates in the reducedDims
+sce.zeisel <- runTSNE(sce.zeisel, dimred="PCA")
+
+library(scater)
+# t-SNE plots from the top PCs 
+plotReducedDim(sce.zeisel, dimred="TSNE", colour_by="level1class")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Moreover, I would like to visualize my scRNA-seq data
+using t-stochastic neighbour embedding method. In my visualizaiton I would like
+to resolve finer details, but also take measures not to include random noise.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000. 
+The de facto standard for visualization of scRNA-seq data is the t-stochastic 
+neighbor embedding (t-SNE) method. This attempts to find a low-dimensional 
+representation of the data that preserves the distances between each point and 
+its neighbors in the high-dimensional space. Unlike PCA, it is not restricted 
+to linear transformations, nor is it obliged to accurately represent distances 
+between distant populations. This means that it has much more freedom in how it 
+arranges cells in low-dimensional space, enabling it to separate many distinct 
+clusters in a complex population.
+One of the main disadvantages of t-SNE is that it is much more computationally 
+intensive than other visualization methods. We mitigate this effect by setting 
+dimred="PCA" in runTSNE(), which instructs the function to perform the t-SNE 
+calculations on the top PCs of sce. This exploits the data compaction and noise 
+removal of the PCA for faster and cleaner results in the t-SNE. It is also 
+possible to run t-SNE on the original expression matrix but this is less 
+efficient.
+Another issue with t-SNE is that it requires the user to be aware of additional 
+parameters. It involves a random initialization so we need to set the seed to 
+ensure that the chosen results are reproducible. We may also wish to repeat the 
+visualization several times to ensure that the results are representative.
+The “perplexity” is another important parameter that determines the granularity 
+of the visualization. Low perplexities will favor resolution of finer structure, 
+possibly to the point that the visualization is compromised by random noise. 
+Thus, it is advisable to test different perplexity values to ensure that the 
+choice of perplexity does not drive the interpretation of the plot.
+We can use runTSNE from scater package to compute t-SNE coordinates using a 
+range of perplexity values.  
+To be able to insturuct runTSNE() to perform the t-SNE calcualtion on the top 
+PCs, we first need to perform principal components analysis (PCA) on the data. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+To visualize the t-SNE plots constructed from the top PCs using the range of 
+perplexity values, we can use plotReducedDim() function from scater package. In 
+demo plot each point represents a cell, colored according to the published 
+annotation.
+Finally, it is unwise to read too much into the relative sizes and positions of 
+the visual clusters. t-SNE will inflate dense clusters and compress sparse ones, 
+such that we cannot use the size as a measure of subpopulation heterogeneity. 
+In addition, t-SNE is not obliged to preserve the relative locations of 
+non-neighboring clusters, such that we cannot use their positions to determine 
+relationships between distant clusters. Despite its shortcomings, t-SNE is 
+proven tool for general-purpose visualization of scRNA-seq data and remains a 
+popular choice in many analysis pipelines. 
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+set.seed(100)
+# stores the t-SNE coordinates using perplexity=5 
+sce.zeisel <- runTSNE(sce.zeisel, dimred="PCA", perplexity=5)
+
+# t-SNE plots from the top PCs using perplexity=5
+out5 <- plotReducedDim(sce.zeisel, dimred="TSNE",
+    colour_by="level1class") + ggtitle("perplexity = 5")
+
+set.seed(100)
+# stores the t-SNE coordinates using perplexity=20
+sce.zeisel <- runTSNE(sce.zeisel, dimred="PCA", perplexity=20)
+
+# t-SNE plots from the top PCs using perplexity=20
+out20 <- plotReducedDim(sce.zeisel, dimred="TSNE",
+    colour_by="level1class") + ggtitle("perplexity = 20")
+
+set.seed(100)
+# stores the t-SNE coordinates using perplexity=80
+sce.zeisel <- runTSNE(sce.zeisel, dimred="PCA", perplexity=80)
+
+# t-SNE plots from the top PCs using perplexity=80
+out80 <- plotReducedDim(sce.zeisel, dimred="TSNE", 
+    colour_by="level1class") + ggtitle("perplexity = 80")
+
+# create a grid of plots
+gridExtra::grid.arrange(out5, out20, out80, ncol=3)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select top 2000 highly 
+variable genes (HVGs). Moreover, I would like to visualize my scRNA-seq data
+using the unifrom manifold approximation and projection (UMAP) method, an 
+alternative to the t-stochastic neighbour embedding (t-SNE) method.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 2000.
+The de facto standard for visualization of scRNA-seq data is the t-stochastic 
+neighbor embedding (t-SNE) method. This attempts to find a low-dimensional 
+representation of the data that preserves the distances between each point and 
+its neighbors in the high-dimensional space. Unlike PCA, it is not restricted 
+to linear transformations, nor is it obliged to accurately represent distances 
+between distant populations. This means that it has much more freedom in how it 
+arranges cells in low-dimensional space, enabling it to separate many distinct 
+clusters in a complex population.
+The uniform manifold approximation and projection (UMAP) method is an 
+alternative to t-SNE for non-linear dimensionality reduction. It is roughly 
+similar to t-SNE in that it also tries to find a low-dimensional representation 
+that preserves relationships between neighbors in high-dimensional space. 
+However, the two methods are based on different theory, represented by 
+differences in the various graph weighting equations. This manifests as a 
+different visualization.
+Compared to t-SNE, the UMAP visualization tends to have more compact visual 
+clusters with more empty space between them. It also attempts to preserve more 
+of the global structure than t-SNE. From a practical perspective, UMAP is much 
+faster than t-SNE, which may be an important consideration for large datasets. 
+Here we run UMAP on the top PCs. UMAP also involves a series of randomization 
+steps so setting the seed is critical.
+We can use runUMAP from scater package to compute UMAP coordinates.
+To be able to insturuct runUMAP() to perform the UMAP calcualtion on the top 
+PCs, we first need to perform principal components analysis (PCA) on the data. 
+Principal components analysis (PCA) discovers axes in high-dimensional space 
+that capture the largest amount of variation. The variance captured by each 
+axis is defined as the variance in the positions of cells along that axis. 
+In PCA, the first axis (or “principal component”, PC) is chosen such that it 
+maximizes this variance. The next PC is chosen such that it is orthogonal to 
+the first and captures the greatest remaining amount of variation, and so on.
+By definition, the top PCs capture the dominant factors of heterogeneity in the 
+data set. In the context of scRNA-seq, our assumption is that biological 
+processes affect multiple genes in a coordinated manner. This means that the 
+earlier PCs are likely to represent biological structure as more variation can 
+be captured by considering the correlated behavior of many genes. By comparison, 
+random technical or biological noise is expected to affect each gene 
+independently. There is unlikely to be an axis that can capture random variation 
+across many genes, meaning that noise should mostly be concentrated in the later 
+PCs. This motivates the use of the earlier PCs in our downstream analyses, which 
+concentrates the biological signal to simultaneously reduce computational work 
+and remove noise. The use of the earlier PCs for denoising and data compaction 
+is a strategy that is simple, highly effective and widely used in a variety of 
+fields. 
+We perform a PCA on the log-normalized expression values using the fixedPCA() 
+function from scran. By default, fixedPCA() will compute the first 50 PCs and 
+store them in the reducedDims() of the output SingleCellExperiment object. Here,
+we use only the top 2000 genes with the largest biological components to reduce 
+both computational work and high-dimensional random noise. In particular, while 
+PCA is robust to random noise, an excess of it may cause the earlier PCs to 
+capture noise instead of biological structure. This effect can be mitigated by 
+restricting the PCA to a subset of HVGs.
+To visualize the UMAP plots constructed from the top PCs, we can use 
+plotReducedDim() function from scater package. In demo plot each point 
+represents a cell, colored according to the published annotation.
+It is arguable whether the UMAP or t-SNE visualizations are more useful or 
+aesthetically pleasing. UMAP aims to preserve more global structure but this 
+necessarily reduces resolution within each visual cluster. However, UMAP is 
+unarguably much faster, and for that reason alone, it is increasingly displacing
+t-SNE as the method of choice for visualizing large scRNA-seq data sets.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.zeisel <- ZeiselBrainData()
+
+library(scater)
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+#--- gene-annotation ---#
+library(org.Mm.eg.db)
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.zeisel, subsets=list(
+    Mt=rowData(sce.zeisel)$featureType=="mito"))
+qc <- quickPerCellQC(stats, percent_subsets=c("altexps_ERCC_percent", 
+    "subsets_Mt_percent"))
+sce.zeisel <- sce.zeisel[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.zeisel)
+sce.zeisel <- computeSumFactors(sce.zeisel, cluster=clusters) 
+sce.zeisel <- logNormCounts(sce.zeisel)
+
+#--- variance-modelling ---#
+dec.zeisel <- modelGeneVarWithSpikes(sce.zeisel, "ERCC")
+top.hvgs <- getTopHVGs(dec.zeisel, prop=0.1)
+
+## FOR DEMO PURPOSE WE'LL USE ZEISEL ET AL.(2015) DATASET CREATED AS ABOVE
+
+library(scran)
+# taking the top 2000 genes
+top.zeisel <- getTopHVGs(dec.zeisel, n=2000)
+
+# set seed
+set.seed(100) 
+
+# perform PCA on the selected genes (n=2000)
+sce.zeisel <- fixedPCA(sce.zeisel, subset.row=top.zeisel)
+
+# confirm storage of PCA in sce
+reducedDimNames(sce.zeisel)
+
+# set seed
+set.seed(1100101001)
+
+# stores the UMAP coordinates
+sce.zeisel <- runUMAP(sce.zeisel, dimred="PCA")
+
+# UMAP plots from the top PCs
+plotReducedDim(sce.zeisel, dimred="UMAP", colour_by="level1class")
+
+```
+
+--- TASK END

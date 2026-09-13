@@ -1,0 +1,416 @@
+---
+title: "prompt/completion pairs chapter 6"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I want to make a GRanges object
+with 3 ranges in it. They are all
+chr21, and have the ranges 0-100,100-200
+and 200-300. They are from strand -,- and + 
+respectively. How do I do this?
+
+completion:
+To create a GRanges object with three ranges on 
+chromosome "chr21" with the specified coordinates and 
+strands, you can use the GenomicRanges package in R. 
+Here's how you can create the GRanges object with the 
+provided information:
+
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+require(IRanges)
+
+res <- GRanges(seqnames = c("chr21", "chr21", "chr21"),
+               ranges = IRanges(start = c(0, 100, 200),
+                                end = c(100, 200, 300)),
+               strand = c("-","-","+")
+              )
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a Granges object called res containing 3 ranges
+that I want to add a metadata column to 
+with the information sampleID : 1,2,3. 
+How do I do this?
+
+completion:
+To add a metadata column with the information 
+"sampleID: 1, 2, 3" to a GRanges object called res 
+containing three ranges, you can use the mcols function 
+from the GenomicRanges package. Here's how you can do it:
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# add metadata column to GRanges object
+mcols(res)$sampleID <- c(1, 2, 3)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a GRanges object called res containing 3 ranges.
+I want to extract the metadata from this GRanges object. 
+How do I do this?
+
+completion:
+To extract metadata from a GRanges object you 
+can make use of the `values` function in R. 
+Here is how you do it: 
+
+```{r,eval=FALSE}
+
+# extract metadata
+met_dat <- values(res)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a GRanges object called res containing 3 ranges.
+This object has 1 metadata column called sampleID that 
+I wish to remove. How do I do this?
+
+completion:
+To remove a metadata column named "sampleID" from a GRanges object called res, 
+you can use the $ operator to manipulate the metadata columns. Here is how
+you can do it:
+
+```{r,eval=FALSE}
+# remove metadata column sampleID
+res$sampleID <- NULL
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called data with 
+4 columns which holds information about 
+sequence reads.The first column holds
+sequence names, the second column holds the
+start position, the third column holds the end
+position and the fourth column holds information
+on sampleID. I want to convert this dataframe to 
+a GRanges object. How do I do this?
+
+completion:
+To convert your dataframe `data` to a GRanges object
+we can set the column names for your dataframe to the
+conventional names for a GRanges object, and then make
+use of the function `makeGRangesFromDataFrame`. 
+Setting the argument `keep.extra.columns = TRUE` ensures
+you keep the metadata from your dataframe as well. 
+
+```{r,eval=FALSE}
+# set columnnames to conventional names
+colnames (data) <- c("seqnames", "start", "end", "sampleID")
+
+# make GRanges object
+gr_data <- makeGRangesFromDataFrame(data, keep.extra.columns = TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects called bp and cpg.
+I want to see if there are any ranges in 
+bp which overlap with cpg. How do I do this?
+
+completion:
+To determine if any ranges overlap between 
+your two GRanges objects, you can use the GenomicRanges 
+package. Using the function `findOverlaps` will find
+one-to-one overlaps between your two objects. 
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# find overlaps
+res <- findOverlaps(bp,cpg)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects called bp and cpg.
+I want to count how many ranges in bp
+overlap with ranges in cpg. How do I 
+do this?
+
+completion:
+To count the amount of ranges from bp
+that overlap with the individual ranges 
+in cpg, you can make use of the `countOverlaps`
+function from the GenomicRanges library. 
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# count overlaps
+counts <- countOverlaps(cpg, bp)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects called bp and cpg.
+I want to find the ranges in cpg which are
+nearest to each of the ranges in bp. 
+How do I do this?
+
+completion:
+To find the ranges in the cpg GRanges object that 
+are nearest to each of the ranges in the bp GRanges 
+object you can use the GenomicRanges package nearest function. 
+Here's how you can do it:
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# find closest ranges
+res <- nearest (bp,cpg)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects called bp and cpg.
+I want to find the distance for all bp ranges to 
+the nearest cpg ranges. How do I do this?
+
+completion:
+To find the distance from each range in the bp GRanges object 
+to the nearest range in the cpg GRanges object you can use the 
+GenomicRanges package distanceToNearest function. 
+Here is how you do it:
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# find distances
+dists <- distanceToNearest(bp, cpg, select = "arbitrary")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SummarizedExperiment object called `se`
+from which I want to extract the column associated
+tables. How do I do this?
+
+completion:
+In a SummarizedExperiment object, the column-associated 
+tables are typically stored in the colData slot. To extract 
+the column-associated tables from a SummarizedExperiment object 
+called se, you can access the colData slot using the `colData`
+function. Here is how you do it:
+
+```{r,eval=FALSE}
+# extract column associated tables
+col_dat <- colData(se)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SummarizedExperiment object called `se`
+from which I want to extract the row associated
+tables. How do I do this?
+
+completion:
+In a SummarizedExperiment object, the row-associated 
+tables are typically stored in the rowData slot. 
+To extract the row-associated tables from a SummarizedExperiment 
+object called se, you can access the rowData slot as follows:
+
+```{r,eval=FALSE}
+# extract row associated tables
+row_dat <- rowData(se)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SummarizedExperiment object called `se`
+from which I want to extract the main table. 
+How do I do this?
+
+completion:
+In a SummarizedExperiment object, the main data table is 
+typically stored in the assay slot. To extract the main table 
+from a SummarizedExperiment object called se, you can access 
+the assay slot as follows:
+
+```{r,eval=FALSE}
+
+# extract main table(s):
+main <- assays(se)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SummarizedExperiment object called `se`. 
+I want to extract a subsection based on 
+a colData called timepoint. I only want
+items for which timepoint is equal to 1.
+How do I do this?
+
+completion:
+To extract a subsection of a SummarizedExperiment 
+object based on the values in the timepoint column 
+of the colData, you can use subsetting. 
+Here's how you can do it:
+
+```{r,eval=FALSE}
+se_subset <- se[, se$timepoint==1]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SummarizedExperiment object called `se`. 
+I want to extract a subsection for rows which are in 
+chr1:100,000-1,100,000. How do I do this?
+
+completion:
+To extract a subset of rows from a SummarizedExperiment 
+object that fall within the region "chr1:100,000-1,100,000," 
+you can use the subsetByOverlaps function from the GenomicRanges 
+package. Here's how you can do it:
+
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+# get subset
+roi <- GRanges(seqnames="chr1", ranges=100000:1100000)
+se_subset <- subsetByOverlaps(se, roi)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a ScoreMatrix object called sm of 
+which I want to plot enrichment values. 
+How do I do this?
+
+completion:
+To plot enrichment values from a ScoreMatrix
+object, you can make use of the genomation library
+function `plotMeta`. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# plot enrichment
+plotMeta(sm)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a ScoreMatrixList object called sm of 
+which I want to plot enrichment values. 
+How do I do this?
+
+completion:
+To plot enrichment values from a ScoreMatrixList
+object, you can make use of the genomation library
+function `plotMeta`. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# plot enrichment
+plotMeta(sm)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a ScoreMatrix object called sm of 
+which I want to plot enrichment values in a heatmap. 
+How do I do this?
+
+completion:
+To plot enrichment values from a ScoreMatrix
+object in a heatmap, you can make use of the genomation library
+function `heatMatrix`. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# plot heatMatrix
+heatMatrix(sm,order=TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a ScoreMatrixList object called sm of 
+which I want to plot enrichment values in a heatmap. 
+How do I do this?
+
+completion:
+To plot enrichment values from a ScoreMatrixList
+object in a heatmap, you can make use of the genomation library
+function `multiHeatMatrix`. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# plot heatMatrix
+multiHeatMatrix(sm, order=TRUE)
+```
+
+--- TASK END

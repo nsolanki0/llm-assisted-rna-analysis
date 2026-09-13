@@ -1,0 +1,225 @@
+---
+title: "prompt/completion pairs single-cell_intro_chapter 3"
+author: "authors"
+date: "2023-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have single cell RNA sequence (scRNA-seq) data set in file 
+"GSE85241_cellsystems_dataset_4donors_updated.csv.gz" in .csv.gz format,
+which I would like to read.
+How can I do this?
+
+completion:
+Single cell RNA sequence (scRNA-seq) data set can be read by using read.delim()
+function and stored as a matrix as follow.
+ 
+```{r,eval=FALSE}
+
+# read the scRNA-Seq dataset
+mat <- as.matrix(read.delim("GSE85241_cellsystems_dataset_4donors_updated.csv.gz"))
+
+# check dimensions (number of rows, number of columns) of the created matrix
+dim(mat) 
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have single cell RNA sequence (scRNA-seq) data set in file 
+"GSE85241_cellsystems_dataset_4donors_updated.csv.gz" in .csv.gz format,
+which I would like to read but store only non-zero values.
+How can I do this?
+
+completion:
+For reading single cell RNA sequence (scRNA-seq) data set and storing only 
+non-zero values one can make use of readSparseCounts() function 
+from the scuttle package as follow. The data are stored as a matrix.
+ 
+```{r,eval=FALSE}
+
+library(scuttle)
+
+# read the scRNA-Seq dataset
+sparse.mat <- readSparseCounts("GSE85241_cellsystems_dataset_4donors_updated.csv.gz")
+
+# check dimensions (number of rows, number of columns) of the created matrix
+dim(sparse.mat)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have single cell RNA sequence (scRNA-seq) data set in file 
+"GSE61533_HTSEQ_count_results.xls" in Excel format. I would like to extract
+the data into a matrix.
+How can I do this?
+
+completion:
+Single cell RNA sequence (scRNA-seq) data set file in Excel format can be
+read using read_excel() function from readxl package. After which the first
+row containing the gene IDs can be extracted, data baring the first row 
+converted to matrix and then the extracted gene IDs added to the matrix as 
+row names, to have the gene names as row names and counts in each cell in each
+column. 
+ 
+```{r,eval=FALSE}
+
+library(readxl)
+
+# read the scRNA-Seq dataset
+all.counts <- read_excel("GSE61533_HTSEQ_count_results.xls")
+
+# extract IDs
+gene.names <- all.counts$ID
+
+# convert to matrix
+all.counts <- as.matrix(all.counts[,-1])
+
+# add extracted IDs as row names to the above created matrix
+rownames(all.counts) <- gene.names
+
+# check dimensions (number of rows, number of columns) of the created matrix
+dim(all.counts)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 10X genomics data in a directory which I would like to read. 
+How can I do this?
+
+completion:
+10X genomics data can be read by supplying the directory path to 
+read10xCounts() function from the DropletUtils package. The output is a
+SingleCellExperiment object containing the matrix.
+
+```{r,eval=FALSE}
+
+library(DropletUtils)
+
+# read the scRNA-Seq dataset
+sce <- read10xCounts("tenx-2.1.0-pbmc4k/filtered_gene_bc_matrices/GRCh38")
+
+# inspect the singlecellexperiment object
+sce
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have multiple 10X genomics data in multiple directories. All the datasets 
+have same annotations. I would like to read the datasets and combine them 
+into a single object. 
+How can I do this?
+
+completion:
+10X genomics data can be read by supplying the directory path to 
+read10xCounts() function from the DropletUtils package. To combine multiple 
+data set into a single object, their directory paths are supplied directly
+to the read10xCounts() function. 
+
+```{r,eval=FALSE}
+
+library(DropletUtils)
+
+# store scRNA-Seq dataset A path
+dirA <- "tenx-2.1.0-pbmc4k/filtered_gene_bc_matrices/GRCh38"
+
+# store scRNA-Seq dataset B path
+dirB <- "tenx-2.1.0-pbmc4k-2/filtered_gene_bc_matrices/GRCh38"
+
+# read the scRNA-Seq dataset A and B
+sce <- read10xCounts(c(dirA, dirB))
+
+# inspect the object (combined singlecellexperiment object)
+sce
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+What is Hierarchical Data Format version 5 (HDF5) and how can data in H5AD 
+format be read?
+
+completion:
+A family of scRNA-seq storage formats is based around Hierarchical Data Format 
+version 5 (HDF5). These formats offer the ability to store, in the same file, 
+both the expression values and associated gene and cell annotations. 
+It has an additional advantage in that Bioconductor-based analyses can be 
+performed without reading all of the data into R. This allows us to analyze 
+very large datasets in the presence of limited computer memory.
+One flavor of this approach is the H5AD format, which can be read as a 
+SingleCellExperiment using the zellkonverter package, as demonstrated here 
+with the example dataset from zellkonverter package using readH5AD() function.
+
+```{r,eval=FALSE}
+
+library(zellkonverter)
+
+# get the data set
+#demo <- system.file("extdata", "krumsiek11.h5ad", package = "zellkonverter")
+
+# read the datset
+sce <- readH5AD(demo)
+
+# inspect the singlecellexperiment object
+sce
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+What is Hierarchical Data Format version 5 (HDF5) and how can data in Loom file 
+format be read?
+
+completion:
+A family of scRNA-seq storage formats is based around Hierarchical Data Format 
+version 5 (HDF5). These formats offer the ability to store, in the same file, 
+both the expression values and associated gene and cell annotations. 
+It has an additional advantage in that Bioconductor-based analyses can be 
+performed without reading all of the data into R. This allows us to analyze 
+very large datasets in the presence of limited computer memory.
+One flavor of this approach is the Loom file format, which can be read using 
+the LoomExperiment package as a SingleCellLoomExperiment, which is effectively 
+a plug-and-play equivalent to the SingleCellExperiment. Demonstrated here 
+with the example dataset from LoopExperiment package using import() function.
+
+
+```{r,eval=FALSE}
+
+library(LoomExperiment)
+
+# get the data set
+#demo <- system.file("extdata", "L1_DRG_20_example.loom", package = "LoomExperiment")
+
+# read the datset
+scle <- import(demo, type="SingleCellLoomExperiment")
+
+# inspect the singlecellloomexperiment object
+scle
+
+```

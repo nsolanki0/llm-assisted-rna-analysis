@@ -1,0 +1,1209 @@
+---
+title: "prompt/completion pairs chapter 9"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling |  ML/Stats | visualization, numData: 6, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data in the following files: 
+GM12878_hg38_CTCF_r1.chr21.bam, GM12878_hg38_CTCF_r2.chr21.bam, 
+GM12878_hg38_H3K4me1.chr21.bam,
+GM12878_hg38_SMC3_r1.chr21.bam, GM12878_hg38_Input_r1.chr21.bam 
+and GM12878_hg38_Input_r2.chr21.bam. These files are in BAM format.
+These are from CTCF_r1, CTCF_r2, H3K4me1, SMC3_r1 and input_r1 and 
+input_r2 experiments on human chromosome 21 respectivelly. I would 
+like to count the amount of reads in these files when using a genomic
+window of 1000bp for chromosome 21. Once I have the reads, I want to
+normalize these by calculating the Reads Per Million (RPM). I then want
+to remove any windows which do not have any reads for any of the experiments.
+I then want to see if my different experiments are correlated in any way since
+some are replicates of eachother, aby visualizing this using a heatmap. 
+How do I do this?
+
+completion:
+To count the amount of reads from the ChIP-seq data of chromosome
+ 21 in the specified files using a genomic window of 1000bp, we 
+first need to determine the length of chromosome 21, to calculate 
+appropriate tiling windows. This can be done using the 
+`GenomeInfoDb::getChromInfoFromUCSC ("hg38")` which retrieves 
+chromosome information from the hg38 genome assembly for human. 
+We can then make tiling windows spanning over 1000bp each using 
+`GenomicRanges::tileGenome`. 
+We then get the readcounts using `GenomicAlignments::summarizeOverlaps`. 
+After this, we can normalize by dividing each entry in a column by its 
+column sum, and multiplying this by 1e6. We can then calculate the pairwise
+ Pearson correlation coefficient using the `cor` function. 
+Finally we can visualize the correlations in a heatmap using the 
+`pheatmap` function. 
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+require(GenomeInfoDb)
+require (GenomicRanges)
+
+# fetch the chromosome lengths for the human genome
+hg_chrs <- GenomeInfoDb::getChromInfoFromUCSC("hg38")
+
+# find the length of chromosome 21
+hg_chrs <- subset(hg_chrs, grepl("chr21$", chrom))[,"size"]
+names(hg_chrs) <- "chr21"
+
+# create tiling window to use with files of chromosome 21
+tiling_window <- unlist(GenomicRanges::tileGenome(hg_chrs, tilewidth=1000))
+
+# specify files of interest
+file_list <- file.path(list("GM12878_hg38_CTCF_r1.chr21.bam",
+                            "GM12878_hg38_CTCF_r2.chr21.bam",
+                            "GM12878_hg38_H3K4me1.chr21.bam",
+                            "GM12878_hg38_Input_r1.chr21.bam",
+                            "GM12878_hg38_Input_r2.chr21.bam",
+                            "GM12878_hg38_SMC3_r1.chr21.bam"))
+
+# get counts
+so <- GenomicAlignments::summarizeOverlaps(tiling_window, file_list)
+counts <- assays(so)[[1]]
+
+# fix columnnames
+colnames(counts) <- c("CTCF_r1", "CTCF_r2", "H3K4me1",
+                      "SMC3_r1", "input_r1", "input_r2")
+
+# normalize by rpm
+rpm <- counts
+col_count <- colSums (counts)
+for (i in 1:ncol(counts)){
+  rpm[, i] <- (counts[, i]/col_count[i])*1e6
+}
+
+# remove tiles which have 0 reads across all columns
+# since these provide no information
+rpm <- rpm[!rowSums(rpm)==0, ]
+
+# calculate pairwise pearson correlation
+correlation_matrix <- cor(rpm, method='pearson')
+
+# create heatmap
+library(viridis)
+pheatmap::pheatmap(correlation_matrix, color = viridis(10))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats , numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from my experiment in the file called 
+"GM12878_hg38_CTCF_r1.chr21.bam". This file is in BAM format
+and contains information of ChIP-seq data on chromosome 21. 
+I want to extend the small reads that I have so they are 200 bp for 
+further analysis. I want the extension to happen at the 3'-end 
+of the fragments. I then want to export the results as a 
+BigWig file. How do I do this?
+
+completion:
+You can extend the reads in your ChIP-seq BAM file to 200
+base pairs at the 3'-end of the fragments using the `resize`
+function in R. We first read in the data using the 
+`GenomicAlignments::readGAlignments` function. Then we convert 
+the reads to a GRanges object, and resize the reads. We then compress 
+the data and create a BigWig file for writing the extended reads. 
+Here are the steps to achieve this:
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read in data
+reads_raw <- GenomicAlignments::readGAlignments("GM12878_hg38_CTCF_r1.chr21.bam")
+
+# convert to GRange object
+reads_grange <- GenomicRanges::GRanges(reads_raw)
+
+# resize reads
+reads <- resize(reads_grange, width=200, fix="start")
+
+# process for saving
+reads <- keepSeqlevels(reads, "chr21", pruning.mode="coarse")
+span <- max(end(ranges(reads))) - min(start(ranges(reads)))
+names(span) <- "chr21"
+cov <- coverage(reads, width = span)
+
+# export as bigWig file
+output_file <- "new_file.bigWig"
+export.bw(cov, "output_file")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from my experiment in the file called 
+"GM12878_hg38_CTCF_r1.chr21.bam". This file is in BAM format
+and contains information of ChIP-seq data from a CTCF experiment
+on chromosome 21. I want to extend the small reads that I have 
+so they are 200 bp for further analysis. I want the extension to happen 
+at the 3'-end of the fragments. I then want to visualize peaks in 
+my ChIP-seq data along the human chromosome 21. How do I do this?
+
+completion:
+You can extend the reads in your ChIP-seq BAM file to be 200 
+base pairs at the 3'-end of the fragments using the `resize`
+function in R. We first read in the data using the 
+`GenomicAlignments::readGAlignments` function. Then we convert
+the reads to a GRanges object, and resize the reads. To visualize
+the peaks in your ChIP-seq data along human chromosome 21, you can 
+use the Gviz package. Below is a basic example to create a visualization.
+Here we create a DataTrack using the extended reads, and a genome 
+axis track. When plotting we set the genomic range. Adjust the range 
+to match your region of interest.
+
+```{r,eval=FALSE}
+require (GenomeInfoDb)
+require(Gviz)
+require(GenomicAlignments)
+require(GenomicRanges)
+
+# read in data
+reads_raw <- GenomicAlignments::readGAlignments("GM12878_hg38_CTCF_r1.chr21.bam")
+
+# convert to GRange object
+reads_grange <- GenomicRanges::GRanges(reads_raw)
+
+# resize reads
+reads <- resize(reads_grange, width=200, fix="start")
+
+# process for plotting
+reads <- keepSeqlevels(reads, "chr21", pruning.mode="coarse")
+span <- max(end(ranges(reads))) - min(start(ranges(reads)))
+names(span) <- "chr21"
+cov <- coverage(reads, width = span)
+
+
+# convert reads to GRanges object and define the signal track
+gcov   <- as(cov, "GRanges")
+dtrack <- Gviz::DataTrack(gcov, name = "CTCF",ylim=c(0,50),col.histogram="steelblue",fill.histogram="black")
+
+# create genomic axis track
+AT <- Gviz::GenomeAxisTrack()
+
+# define the track ordering 
+track_list <- c(dtrack,AT)
+
+# plot
+Gviz::plotTracks(track_list, 
+    from = min(start(ranges(reads))),
+    to = max(end(ranges(reads))),
+    window="auto",
+    background.title = "black",
+    type="histogram"
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from my experiment in the file called 
+"GM12878_hg38_CTCF_r1.chr21.bam". This file is in BAM format
+and contains information of ChIP-seq data from a CTCF experiment
+on chromosome 21. I want to assess the quality of my ChIP-seq data, 
+by using plus and minus strand cross-correlation using the jaccard 
+index. I want to plot the results from the cross-correlation analysis
+in a scatterplot. How do I do this?
+
+completion:
+To assess the quality of your ChIP-seq data using plus and 
+minus strand cross-correlation, you can do the following:
+Load your ChIP-seq data from the BAM file and prepare it for
+analysis. You can use the `GenomicAlignments::readGAlignments` 
+function for this. To perform plus and minus strand cross-correlation 
+we keep the starting position of each read. We then split the 
+reads into minus and plus strand, and calculate the coverage profile. 
+The `GenomicAlignments::coverage` counts the coverage per position. 
+This is turned into a Boolean vector by asking which genomic positions 
+have a coverage > 0. We then shift the coverage vector from the plus 
+strand by 1 to 400 base pairs, and for each pair shift we will calculate 
+the Jaccard index between the vectors on the plus and minus strand. 
+With this, we can plot the results using the `ggplot2::ggplot` function. 
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+require(GenomicRanges)
+require(ggplot2)
+
+# read in data and convert to GRanges object
+reads_raw <- GenomicAlignments::readGAlignments("GM12878_hg38_CTCF_r1.chr21.bam")
+reads <- granges(reads_raw)
+
+# keep only the starting position of each read
+reads <- resize(reads, width=1, fix="start")
+
+# if you are only interested in keeping information of chromosome 21
+# If you want to assess the entire chromosome, you can skip this step.
+reads <- keepSeqlevels(reads, "chr21", pruning.mode='coarse')
+
+#  calculate span and split in plus and minus strand
+span <- max(end(ranges(reads))) - min(start(ranges(reads)))
+names(span) <- "chr21"
+reads <- split(reads, strand(reads))
+
+# calculate coverage profile
+cov_plus <- GenomicAlignments::coverage(reads[["+"]], width = span)[[1]] > 0
+cov_min <- GenomicAlignments::coverage(reads[["-"]], width = span)[[1]] > 0
+cov_plus <- as.vector(cov_plus)
+cov_min <- as.vector(cov_min)
+
+# define the shift range
+wsize <- 1:400
+
+# define jaccard function
+jaccard <- function(x,y)sum((x & y)) / sum((x | y))
+
+# shifts the + vector by 1 - 400 nucleotides and
+# calculates the correlation coefficient
+cc <- shiftApply(
+    SHIFT = wsize, 
+    X     = cov_plus,
+    Y     = cov_min,
+    FUN   = jaccard
+)
+
+# convert the results into a data frame
+cc <- data.frame(fragment_size = wsize, cross_correlation = cc)
+
+# create plot
+ggplot2::ggplot(data = cc, aes(fragment_size, cross_correlation)) +
+    geom_point() +
+    geom_vline(xintercept = which.max(cc$cross_correlation), 
+               size=2, color='red', linetype=2) +
+    xlab('Shift in base pairs') +
+    ylab('Jaccard similarity') 
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from my experiment in the files called 
+"GM12878_hg38_CTCF_r1.chr21.bam" and "GM12878_hg38_CTCF_r2.chr21.bam". 
+These files are in BAM format and contain information of ChIP-seq data 
+from a CTCF experiment on chromosome 21 of human. These two files are 
+replicates of the same experiment. I want to look at the GC bias 
+quantification for both of these files after normalization of reads per 
+million. For reference, I want to use the sequence information of the UCSC 
+hg38 genome chromosome 21. To calculate the average GC content, I want to use
+a genomic window of 1000bp across the entire chromosome. How do I do this?
+
+completion:
+To perform GC bias quantification for ChIP-seq replicates using a genomic 
+window of 1000 bp across human chromosome 21 (UCSC hg38) as a reference, we
+first read in the chromsome length of chromosome 21. This is used to create 
+tiling windows across the genome each window spanning 1000bp. These tiling windows
+are then used to count the number of reads from the ChIP-seq replicates per window. 
+Counts are then normalized and transformed to log scale for convenient plotting.
+To calculate the GC content of tiling widows, the `BSgenome.Hsapiens.UCSC.hg38` 
+library is used. Nucleotide frequency per window is calculated and this
+is used for plotting. GC content in one kilobase windows is then plotted against
+log(reads per million + 1).To avoid taking log(0), a pseudocount of 1 is added.
+ 
+```{r,eval=FALSE}
+require(GenomeInfoDb)
+require(GenomicRanges)
+require(BSgenome.Hsapiens.UCSC.hg38)
+require(ggplot2)
+require(gridExtra)
+
+#list files
+file_list <- file.path(list("GM12878_hg38_CTCF_r1.chr21.bam",
+                            "GM12878_hg38_CTCF_r2.chr21.bam"))
+
+# fetch the chromosome lengths for the human genome
+hg_chrs <- GenomeInfoDb::getChromInfoFromUCSC("hg38")
+
+# find the length of chromosome 21
+hg_chrs <- subset(hg_chrs, grepl("chr21$", chrom))[,"size"]
+names(hg_chrs) <- "chr21"
+
+# create tiling window with width of 1000 bp.
+tiling_window = unlist(tileGenome(
+    seqlengths = hg_chrs,
+    tilewidth  = 1000
+))
+
+# get counts from ChIP-seq replicates
+so <- GenomicAlignments::summarizeOverlaps(tiling_window, file_list)
+counts <- SummarizedExperiment::assays(so)[[1]]
+
+# normalize by rpm
+rpm <- counts
+col_count <- colSums (counts)
+for (i in 1:ncol(counts)){
+  rpm[, i] <- (counts[, i]/col_count[i])*1e6
+}
+
+# because the counts scale often has a large dynamic range
+# we transform it using the log function
+rpm_log <- log10(rpm+1)
+
+
+# fetch sequence of human genome.
+# Uses the information of the tiling window to fetch chromosome 21.
+seq <- getSeq(BSgenome.Hsapiens.UCSC.hg38, tiling_window)
+
+# calculates the frequency of all nucleotides 
+# in sequences of 100bp of chromosome 21
+nuc <- as.data.frame(oligonucleotideFrequency(seq, width = 1))
+
+# calculate the percentage from absolute counts
+nuc <- round(nuc/1000,3)
+
+# make dataframe with log_read count info and GC content per window
+gc <- cbind(data.frame(rpm_log), GC = (nuc[,"G"]+nuc[,"C"]))
+
+# plot 
+plot1 <- ggplot(
+    data = gc, 
+    aes(
+        x = GC, 
+        y = GM12878_hg38_CTCF_r1.chr21.bam
+    )) +
+  geom_point(size=2, alpha=.3) +
+  theme_bw() +
+  theme(
+    axis.text  = element_text(size=10, face="bold"),
+    axis.title = element_text(size=14,face="bold"),
+    plot.title = element_text(hjust = 0.5)) +
+  xlab("GC content in one kilobase windows") +
+  ylab("log10( rpm + 1 )") +
+  ggtitle("GM12878_hg38_CTCF_r1.chr21.bam")
+
+plot2 <- ggplot(
+    data = gc, 
+    aes(
+        x = GC, 
+        y = GM12878_hg38_CTCF_r2.chr21.bam
+    )) +
+  geom_point(size=2, alpha=.3) +
+  theme_bw() +
+  theme(
+    axis.text  = element_text(size=10, face="bold"),
+    axis.title = element_text(size=14,face="bold"),
+    plot.title = element_text(hjust = 0.5)) +
+  xlab('GC content in one kilobase windows') +
+  ylab('log10( rpm + 1 )') +
+  ggtitle("GM12878_hg38_CTCF_r2.chr21.bam") 
+
+gridExtra::grid.arrange(plot1, plot2, ncol = 2)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from my experiment in the file called
+"GM12878_hg38_CTCF_r1.chr21.bam". This file is in BAM format
+and contains information of ChIP-seq data from a CTCF 
+experiment on chromosome 21. I want to annotate my reads to
+see which reads fall in TSS, intronic, exonic or intergenic 
+regions. If reads have mutliple annotations, I want to do the 
+following:
+If a read falls partially in a TSS area, I want to annotate it
+as TSS. If it falls in an exonic region, but also partially in
+an intronic or intergenic region, I want to annotate it as exonic.
+If it falls within an intronic region, but also partially in an 
+intergenic region, I want to annotate it as intronic. So the ordering
+is as follows: TSS -> exon -> intron -> intergenic, with TSS having 
+the highest priority and the intergenic regions having the lowest
+priority. I want to use the location of these regions corresponding 
+to the hg38 genome. I want to use version GRCh38.92. 
+I then want to plot the results of the frequency of reads falling into
+any of these categories. 
+How do I do this?
+
+completion:
+To annotate your ChIP-seq reads with respect to their 
+locations in TSS (Transcription Start Site), exonic, 
+intronic, or intergenic regions, we first read in the 
+data using the `GenomicAlignments::readGAlignments` function. 
+We then convert the reads into a GRange object for further processing.
+For this purpose, in the code snippet below the `AnnotationHub` is used.
+Connecting to the annotation hub allows us to retrieve genomic 
+information from the GRCh38.92 genome annotation from ENSEMBL. We 
+retrieve the information of chromosome 21,and use this to annotate 
+our reads using the `GenomicAlignments::findOverlaps` 
+function. With this we check for any overlaps between 
+the GRCh38.92 genome annotation information and the 
+ChIP-seq reads. Any reads for which there is no 
+overlap will be annotated as intergenic. To ensure 
+the correct hierarchy, we order our data based on 
+TSS -> exon -> intron -> intergenic, and subsequently
+remove any reads with multiple annotations keeping 
+only the annotation with the highest priority. The 
+frequency of category is then calculated, and plotted 
+using the `ggplot2:ggplot` function. 
+
+```{r,eval=FALSE}
+require(AnnotationHub)
+require(dplyr)
+require(GenomicAlignments)
+
+# read in data and convert to GRanges object:
+reads <- GenomicAlignments::readGAlignments("GM12878_hg38_CTCF_r1.chr21.bam")
+reads <- granges(reads)
+
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+# fix chromosome names so they fit UCSC naming and keep chr21
+# keep only chromosome 21
+seqlevels(hum_inf, pruning.mode="coarse") <- paste0("chr", seqlevels(hum_inf))
+hum_inf <- hum_inf[seqnames(hum_inf) == "chr21"]
+reads <- keepStandardChromosomes(reads, pruning.mode="coarse")
+hum_inf <- keepStandardChromosomes(hum_inf, pruning.mode="coarse")
+
+# construct a GRangesList with human annotation
+# the order of the list will determine the hierarchy of annotation
+annotation_list <- GRangesList(
+    # promoters function extends the hum_inf around the TSS
+    # by upstream and downstream amount of 1000bp
+    tss    = promoters(
+      x = subset(hum_inf, type=='gene'),
+      upstream   = 1000, 
+      downstream = 1000), 
+    exon   = subset(hum_inf, type=='exon'),
+    intron = subset(hum_inf, type=='gene')
+)
+
+# find overlaps between ChIP-seq data and ENSEMBL human data
+overlap <- as.data.frame(GenomicAlignments::findOverlaps(reads, annotation_list))
+
+# annotate with names
+overlap$annotation <- names(annotation_list)[overlap$subjectHits]
+
+# order the overlaps based on the hierarchy
+overlap <- overlap[order(overlap$subjectHits), ]
+
+# select only first found category per read
+overlap <- subset(overlap, !duplicated(queryHits))
+
+# find non-overlaps to annotate as intergenic
+non_overlap <- which(!reads %over% annotation_list)
+non_overlap <- data.frame (queryHits = non_overlap, 
+                           subjectHits = rep("NaN",length(non_overlap)),
+                           annotation = rep("intergenic",length(non_overlap)))
+
+res <- rbind(overlap,non_overlap)
+
+# group by annotation:
+res <- group_by(.data=res, annotation)
+
+# count the number of reads in each category
+res <- summarise(.data = res, counts = length(annotation))
+
+# calculate frequency    
+res$frequency  <- with(res, round(counts/sum(counts),2))
+
+#give experiment name
+res$experiment <- "CTCF"
+
+# plot results
+ggplot2::ggplot(data = res, 
+       aes(
+           x    = experiment, 
+           y    = frequency, 
+           fill = annotation
+        )) +
+    geom_bar(stat='identity') +
+    theme_bw() +
+    scale_fill_brewer(palette='Set2') +
+    theme(
+        axis.text = element_text(size=10, face='bold'),
+        axis.title = element_text(size=14,face="bold"),
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab('Sample') +
+    ylab('Percentage of reads') +
+    ggtitle('Percentage of reads in annotation')
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 3, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from 3 different experiments in 
+BigWig files "GM12878_hg38_H3K4me3.chr21.bw", 
+"GM12878_hg38_H3K36me3.chr21.bw" and "GM12878_hg38_POLR2A.chr21.bw". 
+These are H3K4me3, H3K36me3 and POL2 experiments respectively. 
+I want to visualize the signal profiles around the highly expressed 
+human gene URB1 from chromosome 21. I want to use the annotation of 
+these regions corresponding to the hg38 genome, using version GRCh38.92. 
+How do I do this?
+
+completion:
+To visualize the signal profiles around the highly 
+expressed human gene URB1 on chromosome 21 using 
+the ChIP-seq BigWig files for H3K4me3, H3K36me3, and
+ POL2 experiments, you can follow these steps below.
+We first read in the different files using the 
+`rtracklayer::import.bw` function. To be able to 
+annotate the tracks that will be plotted, we will 
+make use of the  `AnnotationHub` library. We use 
+this to obtain annotation information corresponding to 
+the hg38 genome, using version GRCh38.92. To visualize 
+the ChIP-seq data we make use of the `Gviz` library, 
+allowing us to construct several `DataTracks` for the 
+different experiments and plot them against the annotated 
+human URB1 gene.
+
+```{r,eval=FALSE}
+require(rtracklayer)
+require(AnnotationHub)
+require(GenomicFeatures)
+require(Gviz)
+
+# loading in data
+file_list <- list(H3K4me3 = "GM12878_hg38_H3K4me3.chr21.bw",
+                  H3K36me3 = "GM12878_hg38_H3K36me3.chr21.bw",
+                  POL2 = "GM12878_hg38_POLR2A.chr21.bw")
+
+chip_profiles <- lapply(file_list, rtracklayer::import.bw)
+
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+# fix chromosome names so they fit UCSC naming and keep chr21
+# keep only chromosome 21
+seqlevels(hum_inf, pruning.mode="coarse") <- paste0("chr", seqlevels(hum_inf))
+hum_inf <- hum_inf[seqnames(hum_inf) == "chr21"]
+
+# convert info to gene track object to use for later plotting
+txdb <- GenomicFeatures::makeTxDbFromGRanges(hum_inf)
+gene_track  <- Gviz::GeneRegionTrack(txdb, chr="chr21", genome="hg38")
+
+# find the length of chromosome 21
+hg_chrs <- GenomeInfoDb::getChromInfoFromUCSC("hg38")
+hg_chrs <- subset(hg_chrs, grepl("chr21$", chrom))[,"size"]
+names(hg_chrs) <- "chr21"
+
+# construct genome track
+axis <- GenomeAxisTrack(
+    range = GRanges('chr21', IRanges(1, width=hg_chrs))
+)
+
+# construct data tracks
+exp_name <- names(chip_profiles)
+
+data_tracks <- lapply(exp_name, function(exp_name){
+    Gviz::DataTrack(
+                    range = chip_profiles[[exp_name]], 
+                    name  = exp_name,
+                    type  = "h",
+                   )
+})
+
+# focus on URB1 gene
+# select the start and end coordinate for the URB1 gene
+start <- min(start(subset(hum_inf, gene_name == 'URB1')))
+end   <- max(end(subset(hum_inf, gene_name == 'URB1')))
+
+# plot results
+Gviz::plotTracks(
+    trackList = c(axis, gene_track, data_tracks),
+    # relative track sizes
+    sizes     = c(1,1,1,1,1), 
+    # background color
+    background.title     = "black",
+    # controls visualization of gene sets
+    collapseTranscripts  = "longest", 
+    transcriptAnnotation = "symbol",
+    # coordinates to visualize 
+    from =  start,
+    to   =  end
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF experiment on which I would like to 
+do peak calling. The data is contained in a file called 
+"GM12878_hg38_CTCF_r1.chr21.bam". As control for background noise, 
+I have ChIP-seq data in a file called "GM12878_hg38_Input_r5.chr21.bam". 
+Both files are in BAM format. I want to do peak calling using the 
+info of the hg38 genome. I am only interested in the enrichment 
+on chromosome 21. Furthermore, I would like to only have 
+results which have a q-value of lower then 0.01. I would like to
+write the results from this analysis to a txt file for further analysis. 
+How do I do this?
+
+completion:
+Assuming these BAM files are in the same folder as their respecitve
+bam.bai files, peak calling can be performed using the `normr::enrichR` function.
+After peak The function will automatically create tiling windows (250bp by default),
+count the number of reads in each window, and fit a mixture of binomial 
+distributions. After peak calling, we can extract these ranges using the 
+`normr::getRanges` function, and annotate them with their corresponding 
+enrichment- and q-values. We can then filter for q-values < 0.01, and save 
+the results in a tab-seperated txt file using the `write.table` function. 
+
+```{r,eval=FALSE}
+require(normr)
+
+# prepare data
+chip_data <- "GM12878_hg38_CTCF_r1.chr21.bam"
+control_data <- "GM12878_hg38_Input_r5.chr21.bam"
+
+# peak calling
+ctcf_fit <- normr::enrichR(
+            treatment = chip_data,
+            control   = control_data,
+            genome    = "hg38",
+            verbose   = FALSE)
+
+# extract ranges and annotate with q-values and calculated enrichment
+ran <- normr::getRanges(ctcf_fit)
+ran$qvalue <- normr::getQvalues(ctcf_fit)
+ran$enrichment <- normr::getEnrichment(ctcf_fit)
+
+# select regions which correspond to significantly enriched class
+ran <- subset(ran,!is.na(component))
+ran <- subset(ran,qvalue<0.01)
+
+# set seqLevels to just chromosome 21
+# ensure only results for chromosome 21 are kept
+seqlevels(ran, pruning.mode = "coarse") <- "chr21"
+ran <- subset(ran,seqnames=="chr21")
+
+# write to txt file for further analysis
+write.table(ran, 'peaks.txt',
+            row.names = F, col.names = T, quote = F, sep = "\t")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF experiment on which I would 
+like to do peak calling. The data is contained in a file called 
+"GM12878_hg38_CTCF_r1.chr21.bam". 
+As control for background noise, I have ChIP-seq data in a file 
+called "GM12878_hg38_Input_r5.chr21.bam". Both files are in BAM 
+format.I want to do peak calling using the info of the hg38 genome. 
+For the peak calling I want to have bins of 250bp, since I expect sharp 
+peaks. I am only interested in the enrichment on chromosome 21. 
+Furthermore, I would like to only have results which have a q-value of 
+lower then 0.01. To then visualize the results in a genome browser format,  
+I want to extend the reads 200bp, retrieve the read counts,
+and then normalize the read counts by calculating the reads per million. 
+I would then like to visualize the signal around the peak which has the lowest 
+q-value in a genome browser format. How do I do this?
+
+completion:
+To perform ChIP-seq peak calling and downstream analysis in R, 
+we can make use of the `normr` library. Assuming these BAM files 
+are in the same folder as their respecitve bam.bai files, 
+peak calling can be performed using the `normr::enrichR` function.
+The function will count the number of reads in each window, and fit
+a mixture of binomial distributions. After peak calling, we can extract 
+the ranges using the `normr::getRanges` function, and annotate them with
+their corresponding enrichment- and q-values. We can then filter for 
+q-values < 0.01. To then visualize the results, we retrieve the reads using
+the `GenomicAlignments::readGAlignments` and `GenomicRanges::granges` 
+function. We extend the reads with 200bp, and retrieve the coverage vector. 
+We then normalize the read counts to read counts per million. 
+For visualization in a genome browser format we make use of the `Gviz` library. 
+
+```{r,eval=FALSE}
+require(normr)
+require(GenomicAlignments)
+require(GenomicRanges)
+require(Gviz)
+
+# prepare data
+chip_data <- "GM12878_hg38_CTCF_r1.chr21.bam"
+control_data <- "GM12878_hg38_Input_r5.chr21.bam"
+reads_chip <- GenomicRanges::granges(GenomicAlignments::readGAlignments(chip_data))
+reads_control <- GenomicRanges::granges(GenomicAlignments::readGAlignments(control_data))
+
+# define the window width for the counting
+countConfiguration <- normr::countConfigSingleEnd(binsize = 250)
+
+# peak calling
+ctcf_fit <- normr::enrichR(
+            treatment = chip_data,
+            control   = control_data,
+            genome    = "hg38",
+            countConfig = countConfiguration,
+            verbose   = FALSE)
+
+# extract ranges and annotate with q-values and calculated enrichment
+ran <- normr::getRanges(ctcf_fit)
+ran$qvalue <- normr::getQvalues(ctcf_fit)
+ran$enrichment <- normr::getEnrichment(ctcf_fit)
+
+# select regions which correspond to significantly enriched class
+ran <- subset(ran, !is.na(component))
+ran <- subset(ran, qvalue<0.01)
+
+# set seqLevels to just chromosome 21
+seqlevels(ran, pruning.mode = "coarse") <- "chr21"
+ran <- subset(ran,seqnames=="chr21")
+
+# order based on qvalue
+ran <- ran[order(ran$qvalue), ]
+
+# resize the reads to 200bp
+extend <- 200
+reads_chip <- resize(reads_chip, width=extend, fix="start")
+reads_control <- resize(reads_control, width=extend, fix="start")
+
+# get the coverage vector
+cov_chip <- coverage(reads_chip)
+cov_control <- coverage(reads_control)
+
+# normalize the coverage vector to the sequencing depth
+cov_chip <- round(cov_chip * (1000000/length(reads_chip)),2)
+cov_control <- round(cov_control * (1000000/length(reads_control)), 2)
+
+# convert the coverage go a GRanges object
+cov_chip <- as(cov_chip, "GRanges")
+cov_control <- as(cov_control, "GRanges")
+
+
+# keep only chromosome 21
+cov_chip <- cov_chip[seqnames(cov_chip)=="chr21", ]
+cov_control <- cov_control[seqnames(cov_control)=="chr21",]
+seqlevels(cov_chip, pruning.mode="coarse") <- "chr21"
+seqlevels(cov_control, pruning.mode="coarse") <- "chr21"
+
+# prepare tracks for plotting
+# calculate span of reads
+span <- max(end(ranges(cov_chip))) - min(start(ranges(cov_chip)))
+
+#chromosome track
+axis <- Gviz::GenomeAxisTrack(
+    range = GRanges("chr21", IRanges(1, width=span))
+)
+# peaks track
+peaks_track <- Gviz::AnnotationTrack(ran, name = "Peaks")
+
+#data tracks
+# adjust limit as needed
+lim <- c(0,3000)
+chip_track  <- Gviz::DataTrack(
+  range = cov_chip,
+  name  = "Exp",
+  type  = "h",
+  lwd   = 3,
+  ylim = lim
+)
+
+cont_track <- Gviz::DataTrack(
+  range = cov_control,
+  name  = "Control",
+  type  = "h",
+  lwd = 3,
+  ylim = lim
+)
+
+Gviz::plotTracks(
+    trackList = list(axis, peaks_track, chip_track, cont_track),
+    sizes     = c(.5, .5, 1, 1),
+    background.title = "black",
+    # selects the range of the read with the highest qvalue. and adds 1000 basepairs 
+    # around beginning and end
+    from = start(ran)[1] - 1000,
+    to   = end(ran)[1]   + 1000
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF experiment on which I would
+ like to do peak calling. The data is contained in a file called 
+ "GM12878_hg38_CTCF_r1.chr21.bam". 
+As control for background noise, I have ChIP-seq data in a file 
+called "GM12878_hg38_Input_r5.chr21.bam". Both files are in BAM format.
+I want to do peak calling using the info of the hg38 genome. 
+For the peak calling I want to have bins of 250bp, since I expect 
+sharp peaks. I am only interested in the enrichment on chromosome 21. 
+I then want to have a look at the percentage of reads in peaks and 
+visualize this using a barplot. I consider something a peak, when the 
+q-value is smaller then 0.05. 
+How do I do this?
+
+completion:
+To perform ChIP-seq peak calling and downstream analysis in R,
+we can make use of the `normr` library. Assuming these BAM files 
+are in the same folder as their respecitve bam.bai files, 
+peak calling can be performed using the `normr::enrichR` function.
+The function will count the number of reads in each window, and fit
+a mixture of binomial distributions. After peak calling, we can 
+extract the read counts using the `normr::getCounts` function. We 
+extract the q-values and make a new column
+called enriched which will hold information if this is considered 
+a peak or no peak. We then sum the number of reads in the Peak and 
+Not Peak regions for control and experiment, and calculate the 
+percentage of reads in peak and no peak regions for control and 
+experiment. We then plot the results using the 
+`ggplot2::ggplot` function. 
+
+```{r,eval=FALSE}
+require(normr)
+require(GenomicAlignments)
+require(GenomicRanges)
+require(Gviz)
+require(dplyr)
+require(tidyr)
+require(ggplot2)
+
+# prepare data
+chip_data <- "GM12878_hg38_CTCF_r1.chr21.bam"
+control_data <- "GM12878_hg38_Input_r5.chr21.bam"
+reads_chip <- GenomicRanges::granges(GenomicAlignments::readGAlignments(chip_data))
+reads_control <- GenomicRanges::granges(GenomicAlignments::readGAlignments(control_data))
+
+# define the window width for the counting
+countConfiguration <- normr::countConfigSingleEnd(binsize = 250)
+
+# peak calling
+ctcf_fit <- normr::enrichR(
+            treatment = chip_data,
+            control   = control_data,
+            genome    = "hg38",
+            countConfig = countConfiguration,
+            verbose   = FALSE)
+
+# extract counts and annotate with q-values and call peaks
+counts <- data.frame(normr::getCounts(ctcf_fit))
+counts$qvalue <- normr::getQvalues(ctcf_fit)
+
+counts$enriched[counts$qvalue<0.05] <- "Peak"
+counts$enriched[counts$qvalue>=0.05] <- "No peak"
+counts$enriched[is.na(counts$qvalue)] <- "No peak"
+counts$qvalue <- NULL
+
+# reshape the data.frame into a long format
+counts_df <- tidyr::pivot_longer(
+    data      =  counts, 
+    cols      = -enriched,
+    names_to  = "experiment",
+    values_to = "counts"
+)
+
+# sum the number of reads in the Peak and Not Peak regions
+counts_df <- dplyr::group_by(.data = counts_df, experiment, enriched)
+counts_df <- dplyr::summarize(.data = counts_df, num_of_reads = sum(counts))
+    
+# calculate the percentage of reads.
+counts_df <- dplyr::group_by(.data = counts_df, experiment)
+counts_df <- dplyr::mutate(.data = counts_df, total=sum(num_of_reads))
+counts_df$percentage <- with(counts_df, round(num_of_reads/total,2))
+
+# plot results
+ggplot2::ggplot(
+    data = counts_df, 
+    aes(
+        x = experiment, 
+        y = percentage, 
+        fill = enriched
+    )) +
+    geom_bar(stat='identity', position='dodge') +
+    xlab('Experiment') +
+    ylab('Percetage of reads in region') +
+    ggtitle('Percentage of reads in peaks for experiment') +
+    scale_fill_manual(values=c('gray','red'))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment
+on which I would like to do peak calling. The data is contained 
+in a file called "GM12878_hg38_CTCF_r1.chr21.bam". As control for 
+background noise, I have ChIP-seq data in a file called 
+"GM12878_hg38_Input_r5.chr21.bam". Both files are in 
+BAM format. I want to do peak calling using the info of the hg38
+genome. For the peak calling I want to have bins of 250bp, since
+I expect sharp peaks. I am only interested in the enrichment on 
+chromosome 21.  I consider something a peak, when the q-value is 
+smaller then 0.05. For subsequent analysis, I want to calculate the 
+percentage of CTCF peaks which contain a known CTCF motif. I wan to 
+order the peaks I found based on their q-value and plot a reverse 
+cumulative distribution of peak occurrences. How do I do this?
+
+completion:
+To perform ChIP-seq peak calling and downstream analysis in 
+R, we can make use of the `normr` library. Assuming these 
+BAM files are in the same folder as their respecitve bam.bai 
+files, peak calling can be performed using the `normr::enrichR` 
+function.The function will count the number of reads in each 
+window, and fit a mixture of binomial distributions. After 
+peak calling, we can extract the ranges using the `normr::getRanges`
+function, and annotate them with their corresponding
+q-values. We can then filter for q-values < 0.5. Subsequently, 
+we order the GRange object based on the q-values and use the BSgenome
+package to extract the sequences corresponding to the peak regions.
+The DNA binding motifs of the CTCF transcription factor can be extracted
+from the MotifDB Bioconductor database. The MotifDB is an agglomeration 
+of multiple motif databases. This database we use to extract the position
+frequency matrix (PFM). Using the `searchSeq` function we then search the
+function for the CTCF-motif. The searchSeq function will set a cutoff to 
+determine when a sequence contains the motif, and when it doesn't. The cutoff 
+is set by determining the maximal possible score produced by the motif matrix;
+a percentage of that score is then taken as the threshold value. The 
+default setting for this is 80%. Using the results from this analysis, 
+we can then plot the reverse cumulative distribution of peak occurrences.
+
+```{r,eval=FALSE}
+require(normr)
+require(MotifDb)
+require(GenomicAlignments)
+require(GenomicRanges)
+require(Gviz)
+require(BSgenome.Hsapiens.UCSC.hg38)
+require(TFBSTools)
+require(ggplot2)
+
+# prepare data
+chip_data <- "GM12878_hg38_CTCF_r1.chr21.bam"
+control_data <- "GM12878_hg38_Input_r5.chr21.bam"
+reads_chip <- GenomicRanges::granges(GenomicAlignments::readGAlignments(chip_data))
+reads_control <- GenomicRanges::granges(GenomicAlignments::readGAlignments(control_data))
+
+# define the window width for the counting
+countConfiguration <- normr::countConfigSingleEnd(binsize = 250)
+
+# peak calling
+ctcf_fit <- normr::enrichR(
+            treatment = chip_data,
+            control   = control_data,
+            genome    = "hg38",
+            countConfig = countConfiguration,
+            verbose   = FALSE)
+
+# extract ranges, qvalues and enrichment
+ctcf_peaks <- getRanges(ctcf_fit)
+ctcf_peaks$qvalue <- getQvalues(ctcf_fit)
+ctcf_peaks$enrichment <- getEnrichment(ctcf_fit)
+
+#extract reads with enrichment and qvalue<0.05
+ctcf_peaks <- subset(ctcf_peaks,!is.na(component))
+ctcf_peaks <- subset(ctcf_peaks,qvalue<0.05)
+
+#order based on qvalue
+ctcf_peaks <- ctcf_peaks[order(ctcf_peaks$qvalue), ]
+
+# get position frequency matrix for CTCF motif
+# based on the MotifDB version, the location of the CTCF motif
+# might change, if you do not get the expected results please try
+# to subset with different indices
+pfm_ctcf <- MotifDb::query(MotifDb::query(MotifDb, 'Hsapiens'), 'CTCF')[[1]]
+
+#convert pfm matrix to PWM object for later analysis
+ctcf_pwm = TFBSTools::PWMatrix(
+    ID = 'CTCF', 
+    profileMatrix = pfm_ctcf
+)
+
+# extend the peak regions with 400bp
+ctcf_peaks <- resize(ctcf_peaks, width = 400, fix = 'center')
+
+# extract the sequences around the peaks
+seqs <- getSeq(BSgenome.Hsapiens.UCSC.hg38, ctcf_peaks)
+
+# scan each sequence and determine the probability of CTCF binding.
+res <- as.data.frame(TFBSTools::searchSeq(ctcf_pwm,seqs,min.score="80%"))
+
+# create dataframe with length of amount of peaks
+motif_hits = data.frame(
+  peak_order     = 1:length(ctcf_peaks)
+)
+
+# annotate if peaks contained motif or not and sort in desending order
+motif_hits$contains_motif <- motif_hits$peak_order %in% res$seqnames
+motif_hits <- motif_hits[order(-motif_hits$peak_order), ]
+
+# calculate the percentage of peaks with motif for peaks of descending strength
+motif_hits$perc_peaks <- with(motif_hits,
+                                round(cumsum(contains_motif) / max(peak_order),2))
+
+# plot the cumulative distribution of motif hit percentages
+ggplot2::ggplot(
+    motif_hits, 
+    aes(
+        x = peak_order, 
+        y = perc_peaks
+    )) +
+  geom_line(size=2) +
+  theme_bw() +
+  theme(
+    axis.text = element_text(size=10, face='bold'),
+    axis.title = element_text(size=14,face="bold"),
+    plot.title = element_text(hjust = 0.5)) +
+  xlab('Peak rank') +
+  ylab('Percetage of peaks with motif') +
+  ggtitle('Percentage of CTCF peaks with the CTCF motif')
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment
+on chromome 21 on which I did peak calling. The results are stored in
+a txt file called `peaks.txt`. This is a tab separated file, which has the 
+following columns:
+"seqnames",	"start", "end",	"width",	"strand",	"component",	"qvalue" and	
+"enrichment". It holds the sequence names, start of the sequence, end of the 
+sequence, width of the sequence, the strand information, component information,
+q-values and enrichment values respectively. I want to do motif discovery.
+I want to select the top 250 peaks based on their q-value, 
+which I then want to use for the motif discovery, based on the genome version hg38. 
+I want to plot the results and save the resulting PWM matrix into a txt file.
+How do I do this?
+
+completion:
+To perform motif discovery on the top 250 peaks based on their q-value from a ChIP-seq experiment,
+We first read in the table using `data.table::fread()`, and sort it by q-value. We then convert
+our dataframe to a GRanges object, and merge nearby peaks to one region. We then expand
+the regions with 50bp, to look for the motif,  and use the `rGADEM::GADEM` function for
+motif discovery, based on the `BSgenome.Hsapiens.UCSC.hg38::Hsapiens` genome. 
+We can then plot the results using the `plot` function, and save the PWM matrix into a txt file
+using the `write.table` function. 
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+require(rGADEM)
+require(BSgenome.Hsapiens.UCSC.hg38)
+require(TFBSTools)
+
+# read in data
+peaks <- data.table::fread("peaks.txt", header=TRUE)
+
+# order based on q-value
+peaks <- peaks[order(peaks$qvalue),]
+
+# take first 250 sequences:
+peaks <- peaks[1:250,]
+
+# convert to GRanges object
+gr_peaks <- makeGRangesFromDataFrame(peaks, keep.extra.columns = TRUE)
+
+# merge nearby peaks
+gr_peaks <- reduce(gr_peaks)
+
+# expand region around the peaks with 50bp
+peaks_resized <- resize(gr_peaks, width = 50, fix='center')
+
+# run motif discovery
+# needs random seed to begin and number of motifs to find
+novel_motif <- rGADEM::GADEM(peaks_resized, seed=42, nmotifs=1, genome=BSgenome.Hsapiens.UCSC.hg38::Hsapiens)
+
+# plot novel motif
+plot(novel_motif)
+
+# extract the PWM matrix from the GADEM object
+unknown_motif <- getPWM(novel_motif)[[1]]
+
+# Save the PWM matrix to a text file
+write.table(unknown_motif, file = "new_motif.txt", sep = "\t", quote = FALSE, col.names = NA)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have performed motif discovery, and saved the resulting PWM matrix into a txt file
+called "new_motif.txt". This holds the PWM matrix for my newly found motif.
+with rownames in the first column. I want to 
+find some of the most similar known transcription factor motifs in human to my motif, 
+and extract their names. How do I do this?
+
+completion:
+To read in the PWM matrix, we make use of the data.table::fread() function.
+We convert this data.table to a PWM matrix using the `TFBSTools::PWMatrix`
+function. To see which transcription factor motifs are most similar to
+your found motif, we can make use of the `JASPAR2018` library. 
+Using the `TFBSTools::getMatrixSet` we extract the PWM matrices
+for various transcription factor binding motifs. With this, we scan for
+similar motifs using the `TFBSTools::PWMSimilarity` function. We
+convert the results into a dataframe, and order based on similarity score.
+We then assign the appropriate names to our results, and print out
+the 5 motifs with the highest similarity score. 
+
+```{r,eval=FALSE}
+require(JASPAR2018)
+require(TFBSTools)
+
+# read in data
+my_motif <-as.matrix(data.table::fread("new_motif.txt", header=TRUE),rownames=1)
+
+# convert the motif to a PWM matrix
+unknown_pwm <- TFBSTools::PWMatrix(
+    ID = 'unknown', 
+    profileMatrix = my_motif
+)
+
+# extract motifs corresponding to human transcription factors
+pwm_library <- TFBSTools::getMatrixSet(
+  JASPAR2018,
+  opts=list(
+    collection = "CORE",
+    species    = "Homo sapiens",
+    matrixtype = "PWM"
+  ))
+
+# create dataframe out of library for later annotation
+pwm_library_dt <- data.frame (ID = ID(pwm_library), name = name(pwm_library))
+
+# scan for similar motifs
+pwm_sim <- TFBSTools::PWMSimilarity(pwm_library,
+  unknown_pwm, method = 'Pearson')
+
+# make into dataframe
+pwm_sim <- as.data.frame(pwm_sim)
+
+#order based on similarity score:
+pwm_sim <- pwm_sim [order(pwm_sim$pwm_sim,decreasing=TRUE),,drop=FALSE]
+
+# replace row names with motif name
+rownames(pwm_sim)<-c(pwm_library_dt[match(rownames(pwm_sim), pwm_library_dt$ID),"name"])
+
+# show first 5 hits with best similarity score
+pwm_sim[1:5, , drop=FALSE]
+```
+
+--- TASK END

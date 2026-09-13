@@ -1,0 +1,799 @@
+---
+title: "prompt/completion pairs chapter 8"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `raw_counts`. 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. 
+I want to calculate the CPM for every column except for the width column. 
+How do I do this?
+
+completion:
+To calculate the Counts Per Million (CPM) for the columns in 
+your `raw_counts` data. you remove the "width" column, calculate 
+the sum of counts for each sample, and then calculate the CPM 
+by dividing each count by the corresponding sample's total count 
+and multiplying by 1 million. Finally, we save the CPM values
+in a new variable. 
+
+```{r,eval=FALSE}
+# calculate cpm values
+cpm <- apply(subset(raw_counts, select = c(-width)), 2,
+             function(x) x/sum(as.numeric(x)) * 10^6)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `raw_counts`. 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I want to compute the RPKM. 
+The width column should be used for the length of the genes.
+How do I do this?
+
+completion:
+To compute the Reads Per Kilobase Million (RPKM) using a 
+DataFrame called raw_counts where the "width" column contains 
+the length of the corresponding genes, you multiply the raw reads by 10^9. 
+Then divide by the corresponding gene lengths (in kilobases) and divide the above 
+result by the sum of all counts for that sample. This gives you the RPKM. 
+
+```{r,eval=FALSE}
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [, "width"])
+
+
+# compute rpkm
+rpkm <- apply(X = subset(raw_counts, select = c(-width)),
+              MARGIN = 2, 
+              FUN = function(x) {
+                10^9 * x / gene_lengths / sum(as.numeric(x))
+               })
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `raw_counts`. 
+The rows correspond to the genes and the columns 
+represent different samples. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I want to compute the TPM. 
+The width column should be used for the length of the genes.
+How do I do this?
+
+completion:
+To compute the Transcripts Per Million (TPM) values for your 
+gene expression data using the provided raw_counts DataFrame 
+and the gene length information from the "width" column, you can 
+first calculate the gene length normalized values by dividing 
+the counts by the corresponding gene lengths divided by 1000. 
+then, divide the above result by the sum of all counts for that sample 
+times 1 million. 
+
+```{r,eval=FALSE}
+
+# create vector with gene lengths 
+gene_lengths <- as.vector(raw_counts [, "width"])
+
+# compute TPM
+#find gene length normalized values 
+rpk <- apply( subset(raw_counts, select = c(-width)), 2, 
+              function(x) x/(gene_lengths/1000))
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. I have another dataframe called `col_data`. 
+Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. I expect the normal samples
+to cluster together, and the cancer samples to cluster together. 
+I want to perform PCA (The width column can be discarded 
+for this analysis) to see if this is really the case, and plot
+the results in a scatterplot. Annotation of the scatterplot 
+can be done using the `group` column. How do I do this?
+
+completion:
+To perform PCA on your RNA-seq data and create a scatterplot to visualize 
+the clustering of normal and cancer samples based on the "group" information,
+You can perform PCA with help of the
+`prcomp` function. To then visualize the results in a scatterplot, 
+you can make use of the `ggplot2` library in R. 
+Alternatively, you could also make use of the 
+autoplot function. Here is how you do it:
+
+
+```{r,eval=FALSE}
+# prepare annotation vector
+annotation <- as.factor(col_data[, "group"])
+names(annotation) <- rownames(col_data)
+
+# perform PCA 
+t_counts <- t(counts)
+res <- prcomp(t_counts)
+
+# ensure same ordering in annotation vector
+annotation <- annotation[rownames(res$x)]
+
+# plot first 2 PC's in scatterplot and 
+# annotate 
+ggplot2::ggplot (data = res$x,
+                 aes(x = PC1,
+                     y = PC2)) +
+        geom_point(aes(colour = annotation)) +
+        geom_text(hjust=-0.1, vjust=0,label=annotation)+
+        ggtitle ("PCA of RNA seq samples")
+
+# using the autoplot function
+# scales data automatically.
+library(ggfortify)
+autoplot(res, data = col_data, colour = "group")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq normalized count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. There is an additional column 
+width that contains the length of the corresponding gene in 
+the unit of base pairs. I want to select the top 100 genes 
+with the highest variance. How do I do this?
+
+completion:
+To select the top 100 genes with the highest variance in an 
+R DataFrame called counts, you can compute the variance of 
+each gene across all samples. The result of which we can 
+order, and extract the names of the 100 genes which showed 
+the highest variance. 
+
+```{r,eval=FALSE}
+require(pheatmap)
+
+# compute the variance of each gene across samples
+var_count <- apply(counts,1,var)
+
+# order in decreasing value
+var_count <- var_count[order(var_count, decreasing=TRUE),drop=FALSE]
+
+# get names of first 100 genes
+selectedGenes <- names(var_count)[1:100]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq normalized count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. I have another dataframe called `col_data`. 
+Here, the samples are the rows with corresponding rownames and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. I expect the normal samples
+to cluster together, and the cancer samples to cluster together. For
+this purpose I want to create a heatmap. For this heatmap, the column
+`width` can be discarded. I want to create this heatmap only with 
+the top 100 genes with the highest variance. I want to annotate 
+this heatmap using information from the group` column in the `col_data` 
+dataframe. How do I do this?
+
+completion:
+To select the top 100 genes with the highest variance in an 
+R DataFrame called counts, and plot a heatmap of the 
+counts of these genes, you can compute the variance of 
+each gene across all samples. The result of which we can 
+order, and extract the names of the 100 genes which showed 
+the highest variance. These you can then use to plot a heatmap using
+the `pheatmap` library. 
+
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+# prepare annotation dataframe
+annotation <- col_data[, "group",drop=FALSE]
+
+# compute the variance of each gene across samples
+var_count <- apply(counts,1,var)
+
+# order in decreasing value
+var_count <- var_count[order(var_count, decreasing=TRUE),drop=FALSE]
+
+# get names of first 100 genes
+selectedGenes <- names(var_count)[1:100]
+
+# ensure same ordering for annotation
+annotation <- annotation [colnames(counts), ,drop=FALSE]
+
+# plot pheatmap
+pheatmap::pheatmap (counts[selectedGenes, ],
+                    annotation_col = annotation,
+                    scale = 'row')
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq normalized count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. I have another dataframe called `col_data`. 
+Here, the samples are the rows with corresponding rownames and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from control individuals. I want to perform PCA 
+to see if control individuals and cancer individuals cluster together.
+I want to visualize the results in a scatterplot. I want to annotate
+the points in the scatterplot using the `group` column from the `col_data`
+dataframe. How do I do this?
+
+completion:
+To perform PCA and visualize whether control and cancer individuals 
+cluster together using the counts DataFrame and annotate the points 
+using the group column from the col_data DataFrame, you can use the 
+prcomp function to perform PCA on the transposed counts DataFrame. 
+You can choose to scale the data using the scale parameter if necessary.
+
+```{r,eval=FALSE}
+require (ggplot2)
+
+# prepare annotation
+annotation <- as.factor(col_data[, "group"])
+names(annotation) <- rownames(col_data)
+
+# transpose dataframe for PCA
+t_counts <- t(counts)
+
+# perform PCA
+res <- prcomp(t_counts)$x 
+
+# ensure same ordering
+annotation <- annotation[rownames(res)]
+
+# plot first 2 PC's in scatterplot and 
+# annotate 
+ggplot2::ggplot (data = res,
+                 aes(x = PC1,
+                     y = PC2)) +
+        geom_point(aes(colour = annotation)) +
+        geom_text(hjust=-0.1, vjust=0,label=annotation)+
+        ggtitle ("PCA of RNA seq samples")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq normalized count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. I want to calculate the 
+correlation between samples. How do I do this?
+
+completion:
+To calculate the correlation between samples (columns) i
+n an RNA-seq normalized count DataFrame like counts in R, 
+you can use the cor() function. y default, cor() computes Pearson 
+correlation coefficients, which are suitable for most applications. 
+If you want to calculate other types of correlation, you can specify 
+the method using the method argument (e.g., method = "spearman" 
+for Spearman's rank correlation).
+
+```{r,eval=FALSE}
+
+# caluclate correlations
+correlation_matrix <- cor(counts)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq normalized count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. The first 5 columns are
+from case samples. The next 5 are from control 
+samples. I want to calculate the 
+correlation between samples. I then want to 
+visualize the results in a heatmap and annotate
+it with case and control. How do I do this?
+
+completion:
+To calculate the correlation between samples (columns) i
+n an RNA-seq normalized count DataFrame like counts in R, 
+you can use the cor() function. y default, cor() computes Pearson 
+correlation coefficients, which are suitable for most applications. 
+If you want to calculate other types of correlation, you can specify 
+the method using the method argument (e.g., method = "spearman" 
+for Spearman's rank correlation). You can then use the `pheatmap` function
+in R to plot a heatmap. For the annotation, you can make a dataframe holding
+the sample names as rows, with a column for the different annotations.
+This you can use to annotate the heatmap. 
+
+```{r,eval=FALSE}
+# caluclate correlations
+correlation_matrix <- cor(counts)
+
+# create dataframe for annotation
+annotation <- data.frame (anno = c(rep("CASE", 5), rep("Control", 5)),
+                          row.names = colnames(counts))
+
+# plot heatmap
+pheatmap(correlation_matrix,
+         annotation_col = annotation)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called `dds`
+which holds information from my RNA-seq experiments. 
+Genes are in rows, and samples are in columns. 
+I want to remove genes which have no count 
+across all samples. How do I do this?
+
+completion:
+To remove genes that have no counts across all samples in a
+DESeqDataSet object in R, you can use the rowSums() function 
+to calculate the sum of counts for each gene and then filter 
+out the genes with zero counts. 
+
+```{r,eval=FALSE}
+require (DESeq2)
+
+# select entries which have a rowsum of 1 or higher
+dds <- dds[rowSums(DESeq2::counts(dds)) >= 1, ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+It holds information of CASE and CTRL groups the annotation
+of which is in a column called `groups`. I want to calculate the 
+differential expression status of case samples compared 
+to the control samples. I then want to order the results 
+based on p-value. How do I do this?
+
+completion:
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+Now, we can compare and contrast the samples based on different variables of 
+interest. In this case, the group variable that determines if a sample belongs 
+to the CASE group or the CTRL group.
+
+```{r,eval=FALSE}
+require (DESeq2)
+
+# run DESeq
+dds <- DESeq(dds)
+
+#compute the contrast for the 'group' variable where 'CTRL' 
+#samples are used as the control group. 
+DEresults <- results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+#sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue), ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+It holds information of CASE and CTRL groups the annotation
+of which is in a column called `groups`. I want to calculate the 
+differential expression status of case samples compared 
+to the control samples. I then want to order the results 
+based on p-value. After this, I want to plot an MA plot. How do 
+I do this?
+
+completion:
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+Now, we can compare and contrast the samples based on different variables of 
+interest. In this case, the group variable that determines if a sample belongs 
+to the CASE group or the CTRL group.
+To then plot an MA plot, you can make use of the `DESeq2::plotMA` function. 
+
+```{r,eval=FALSE}
+require (DESeq2)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# compute the contrast for the 'group' variable where 'CTRL' 
+# samples are used as the control group. 
+DEresults <- results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+# sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue), ]
+
+# plot MA plot
+plotMA(object = dds, ylim = c(-5, 5))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+It holds information of CASE and CTRL groups the annotation
+of which is in a column called `groups`. I want to calculate the 
+differential expression status of case samples compared 
+to the control samples. I then want to order the results 
+based on p-value. After this, I want to plot the P-value distribution. 
+How do I do this?
+
+completion:
+To calculate the differential expression status of case 
+samples compared to the control samples you can use the DESeq() 
+function of DESeq2, which is a wrapper function that implements 
+estimation of size factors to normalize the counts, estimation 
+of dispersion values, and computing a GLM model based on the 
+experimental design formula. This function returns a 
+DESeqDataSet object, which is an updated version of the dds variable. 
+Now, we can compare and contrast the samples based on different variables of 
+interest. In this case, the group variable that determines if a sample belongs 
+to the CASE group or the CTRL group. You can then plot the P-value 
+distribution using the `ggplot` function. 
+
+```{r,eval=FALSE}
+require(DESeq2)
+require (ggplot2)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# compute the contrast for the 'group' variable where 'CTRL' 
+# samples are used as the control group. 
+DEresults <- results(dds, contrast = c("group", 'CASE', 'CTRL'))
+
+# sort results by increasing p-value
+DEresults <- DEresults[order(DEresults$pvalue), ]
+
+# plot P-value distribution
+ggplot(data = as.data.frame(DEresults), aes(x = pvalue)) + 
+  geom_histogram(bins = 100)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+I want to calculate the differential expression status 
+of case samples compared to the control samples. Then 
+I want to extract the normalized counts from the resulting 
+DESeqDataSet object. How do I do this?
+
+completion:
+To calculate the differential expression status of case samples 
+compared to control samples using a DESeqDataSet object in R, 
+you can use the DESeq2 package, which is designed for differential gene 
+expression analysis in RNA-seq data. Performing differential expression analysis
+can be done using the `DESeq` function. Extracting the 
+normalized counts from the DESeqDataSet object can be done using the 
+`DESeq2::counts` function. 
+
+```{r,eval=FALSE}
+require(DESeq2)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# extract normalized counts from the DESeqDataSet object
+countsNormalized <- DESeq2::counts(dds, normalized = TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+I want to calculate the differential expression status 
+of case samples compared to the control samples. Then 
+I want to extract the normalized counts from the resulting 
+DESeqDataSet object. I then want to select the top 500
+genes which are most variable across samples using the 
+normalized counts, and plot a heatmap of this. 
+How do I do this?
+
+completion:
+To calculate the differential expression status of case samples 
+compared to control samples using a DESeqDataSet object in R, 
+you can use the DESeq2 package, which is designed for differential gene 
+expression analysis in RNA-seq data. Performing differential expression analysis
+can be done using the `DESeq` function. Extracting the 
+normalized counts from the DESeqDataSet object can be done using the 
+`DESeq2::counts` function.  To select the top 500 genes which are 
+most variable across samples we make use of the `var` function. 
+You can then plot a heatmap using the `pheatmap` function in R. 
+
+```{r,eval=FALSE}
+require(DESeq2)
+require (pheatmap)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# extract normalized counts from the DESeqDataSet object
+countsNormalized <-DESeq2::counts(dds, normalized = TRUE)
+
+
+# select most variable 500 genes across samples
+selectedGenes <- names(sort(apply(countsNormalized, 1, var), 
+                            decreasing = TRUE)[1:500])
+
+# create new matrix holding only counts from these genes
+selected_counts <- as.matrix(countsNormalized[selectedGenes, ])
+
+# plot heatmap
+pheatmap::pheatmap (selected_counts,scale = "row",
+                    show_rownames=FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `raw_counts`. 
+It holds the raw read counts of each gene for different 
+samples. The rows correspond to the genes and the columns 
+represent different samples. I want to make an RLE plot
+of this data. How do I do this?
+
+completion:
+To plot an RLE plot of the read counts in `raw_counts`
+you can make use of the `EDASeq` library in R. Here is how 
+you do it:
+
+```{r,eval=FALSE}
+require(EDASeq)
+
+raw_counts <- as.matrix(raw_counts)
+
+plotRLE(raw_counts, outline=FALSE, ylim=c(-4, 4),
+        main = 'Raw Counts',xaxt="n")
+axis (las=2,side=1, labels = colnames(raw_counts), at=1:length(colnames(raw_counts)))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DESeqDataSet object called dds
+which holds information from my RNA-seq experiments. 
+It holds information of CASE and CTRL groups the annotation
+of which is in a column called `groups`. I want to calculate the 
+differential expression status of case samples compared 
+to the control samples. I consider something differentially expressed 
+when it has an adjusted p-value of <0.05.Then I want to extract differentially 
+expressed genes, and perform GO term enrichment analysis on this set, 
+and visualize the results. How do I do this?
+
+completion:
+o calculate the differential expression status of case samples 
+compared to control samples using a DESeqDataSet object in R, 
+you can use the DESeq2 package, which is designed for differential gene 
+expression analysis in RNA-seq data. Performing differential expression analysis
+can be done using the `DESeq` function. The results can then be extracted using the
+`results` function. Performing GO term enrichment can be done using the 
+`grpofiler2` library. To visualize the results you can make use of the
+`gostplot` function. Here is how you do it:
+
+```{r,eval=FALSE}
+require(DESeq2)
+require(gprofiler2)
+
+# run DESeq
+dds <- DESeq(dds)
+
+# extract results
+DEresults <- results(dds, contrast = c('group', 'CASE', 'CTRL'))
+
+# remove results with pvalue of NA
+DEresults <- DEresults[!is.na(DEresults[,"padj"]),]
+
+# get differentially expressed genes:
+diff_exp <- rownames(DEresults[DEresults[,"padj"]<0.05, ])
+
+# calculate enriched GO terms
+goResults <- gost(query = diff_exp, 
+                  organism = "hsapiens",
+                  user_threshold = 0.05)
+
+gostplot(goResults, capped = TRUE, interactive = TRUE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SeqExpressionSet object called `set_s`
+from which I removed unwanted variation using the 
+`RUVSeq` library. Now I want to extract the normalized
+counts from this object. How do I do this?
+
+completion:
+To extract the normalized counts from a SeqExpressionSet object
+you can make use of the `normCounts` function from the `EDASeq`
+library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(EDASeq)
+
+# extract normalized counts that are cleared from unwanted variation using RUVs
+normCountData <- normCounts(set_s)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SeqExpressionSet object called `set_s`
+from which I removed unwanted variation using the 
+`RUVSeq` library. Now I want to extract the normalized
+counts from this object, and plot a heatmap of the results using
+only the top 500 genes which are most variable across samples, annotating
+it with information I stored in a dataframe called `col_data`. This has
+samples as rows and 2 columns storing annotation information. 
+How do I do this?
+
+completion:
+To extract the normalized counts from a SeqExpressionSet object and create a 
+heatmap of the top 500 most variable genes, annotated with information from a 
+separate dataframe (col_data), you can first extract the normalized counts
+using the `normCounts` function from the EDASeq library. You can 
+then use the var function to extract the top 500 most variable genes
+across all samples, and finally plot a heatmap using the `pheatmap` function
+from the pheatmap library. 
+
+```{r,eval=FALSE}
+require(EDASeq)
+require(pheatmap)
+
+# extract normalized counts that are cleared from unwanted variation using RUVs
+normCountData <- normCounts(set_s)
+
+# select top 500 genes based on variance
+selectedGenes <- names(sort(apply(normCountData, 1, var), 
+                            decreasing = TRUE))[1:500]
+
+# plot annotated heatmap
+pheatmap(normCountData[selectedGenes,], 
+         annotation_col = col_data, 
+         show_rownames = FALSE, 
+         scale = "row")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType:  data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `counts` which holds
+RNA-seq count information. 
+The rows correspond to the genes and the columns 
+represent different samples, with corresponding
+row- and columnnames. I have another dataframe called `col_data`. 
+Here, the samples are the rows and the
+file contains 2 columns called `source_name` and `group`. The 
+first column describes if the sample is a type of cancer or if
+the sample is from a normal individual. The `group` column holds 
+values "CTRL" for control samples and "CASE" for case samples.
+This is actually the criteria on which I want to split the samples. 
+Furthermore, I have a SeqExpressionSet object called `set_s`
+from which I removed unwanted variation in my RNA-seq experiment 
+using the `RUVSeq` library using a K=2. Now I want to integrate the sources
+of variation to do differential expresison analysis on the original
+count data which is in a dataframe called `counts`, based on the
+division of the `group` column. How do I do this?
+
+completion:
+To integrate the sources of variation found, you can make use of the 
+pData function. This will extract all the covariate information from 
+your analysis, and this you can use to form a DESeqDataSet object, adding
+the newly found covariates to the design formula. This 
+you can then use to perform differential expression analysis. 
+
+```{r,eval=FALSE}
+
+col_data <- pData(set_s)
+
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = col_data, 
+                              # since K=2, we add W_1 and W_2 to the design formula, 
+                              # leaving the variable of interest for last.
+                              design = ~ W_1 + W_2 + group)
+
+# run differential expression analysis
+dds <- DESeq(dds)
+
+# extract results:
+res <- results(dds, contrast = c("group", "CASE", "CTRL"))
+
+```
+
+--- TASK END

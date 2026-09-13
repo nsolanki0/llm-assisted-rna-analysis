@@ -1,0 +1,908 @@
+---
+title: "prompt/completion pairs single-cell_basic_chapter 6"
+author: "authors"
+date: "2024-01-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to identify the genes that drive separation between clusters in my data.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. Clustering can be then performed using buildSNNGraph() function 
+from scran package.
+The most straightforward approach to marker gene detection involves testing for 
+differential expression (DE) between clusters. If a gene is strongly DE between 
+clusters, it is likely to have driven the separation of cells in the clustering 
+algorithm. Several methods are available to quantify the differences in 
+expression profiles between clusters and obtain a single ranking of genes for 
+each cluster. 
+A general strategy is to compare each pair of clusters and compute scores 
+quantifying the differences in the expression distributions between clusters. 
+The scores for all pairwise comparisons involving a particular cluster are then 
+consolidated into a single DataFrame for that cluster. The scoreMarkers() 
+function from scran returns a list of DataFrames where each DataFrame 
+corresponds to a cluster and each row of the DataFrame corresponds to a gene. 
+In the DataFrame for cluster X, the columns contain the self.average, the mean 
+log-expression in X; other.average, the grand mean across all other clusters; 
+self.detected, the proportion of cells with detected expression in X; 
+other.detected, the mean detected proportion across all other clusters; and 
+finally, a variety of effect size summaries generated from all pairwise 
+comparisons involving X.
+For each cluster, we can then rank candidate markers based on one of these 
+effect size summaries. We demonstrate below with the mean AUC for cluster 1.
+We can then visualize the distribution of expression values across clusters for
+the top potential marker genes (as determined by the mean AUC) using 
+plotExpression() function from scater package.
+In addition to pairwise comparisons one can compare each cluster to the average 
+of all other cells. The latter approach however is sensitive to the population 
+composition, which introduces an element of unpredictability to the marker sets 
+due to variation in cell type abundances. (In the worst case, the presence of 
+one subpopulation containing a majority of the cells will drive the selection 
+of top markers for every other cluster, pushing out useful genes that can 
+distinguish between the smaller subpopulations.) Moreover, pairwise comparisons 
+naturally provide more information to interpret the utility of a marker, e.g., 
+by providing log-fold changes to indicate which clusters are distinguished by 
+each gene.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+#--- clustering ---#
+g <- buildSNNGraph(sce.pbmc, k=10, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+colLabels(sce.pbmc) <- factor(clust)
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# pairwise comparison
+marker.info <- scoreMarkers(sce.pbmc, colLabels(sce.pbmc))
+
+# show compute scores data frames
+marker.info
+
+# statistics for cluster 1
+colnames(marker.info[["1"]]) 
+
+# select cluster 1
+chosen <- marker.info[["1"]]
+
+# rank candidate markers using mean AUC 
+ordered <- chosen[order(chosen$mean.AUC, decreasing=TRUE),]
+
+# showing basic stats only, for brevity
+head(ordered[,1:4]) 
+
+library(scater)
+# visualization of expression values across clusters
+plotExpression(sce.pbmc, features=head(rownames(ordered)), 
+    x="label", colour_by="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to identify the genes that drive separation between clusters in my data.
+Furthermore, I would like to know the ways I could interpret the results?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. Clustering can be then performed using buildSNNGraph() function 
+from scran package.
+The most straightforward approach to marker gene detection involves testing for 
+differential expression (DE) between clusters. If a gene is strongly DE between 
+clusters, it is likely to have driven the separation of cells in the clustering 
+algorithm. Several methods are available to quantify the differences in 
+expression profiles between clusters and obtain a single ranking of genes for 
+each cluster. 
+A general strategy is to compare each pair of clusters and compute scores 
+quantifying the differences in the expression distributions between clusters. 
+The scores for all pairwise comparisons involving a particular cluster are then 
+consolidated into a single DataFrame for that cluster. The scoreMarkers() 
+function from scran returns a list of DataFrames where each DataFrame 
+corresponds to a cluster and each row of the DataFrame corresponds to a gene. 
+In the DataFrame for cluster X, the columns contain the self.average, the mean 
+log-expression in X; other.average, the grand mean across all other clusters; 
+self.detected, the proportion of cells with detected expression in X; 
+other.detected, the mean detected proportion across all other clusters; and 
+finally, a variety of effect size summaries generated from all pairwise 
+comparisons involving X.
+For each cluster, we can then rank candidate markers based on one of these 
+effect size summaries. 
+In addition to pairwise comparisons one can compare each cluster to the average 
+of all other cells. The latter approach however is sensitive to the population 
+composition, which introduces an element of unpredictability to the marker sets 
+due to variation in cell type abundances. (In the worst case, the presence of 
+one subpopulation containing a majority of the cells will drive the selection 
+of top markers for every other cluster, pushing out useful genes that can 
+distinguish between the smaller subpopulations.) Moreover, pairwise comparisons 
+naturally provide more information to interpret the utility of a marker, e.g., 
+by providing log-fold changes to indicate which clusters are distinguished by 
+each gene.
+In the context of marker detection, the area under the curve (AUC) quantifies 
+our ability to distinguish between two distributions in a pairwise comparison. 
+The AUC represents the probability that a randomly chosen observation from our 
+cluster of interest is greater than a randomly chosen observation from the other 
+cluster. A value of 1 corresponds to upregulation, where all values of our 
+cluster of interest are greater than any value from the other cluster; a value 
+of 0.5 means that there is no net difference in the location of the 
+distributions; and a value of 0 corresponds to downregulation. The AUC is 
+closely related to the U statistic in the Wilcoxon ranked sum test (a.k.a., 
+Mann-Whitney U-test).
+Cohen’s d is a standardized log-fold change where the difference in the mean 
+log-expression between groups is scaled by the average standard deviation across 
+groups. In other words, it is the number of standard deviations that separate 
+the means of the two groups. The interpretation is similar to the log-fold 
+change; positive values indicate that the gene is upregulated in our cluster of 
+interest, negative values indicate downregulation and values close to zero 
+indicate that there is little difference. Cohen’s d is roughly analogous to the 
+t-statistic in various two-sample t-tests.
+Finally, we also compute the log-fold change in the proportion of cells with 
+detected expression between clusters. This ignores any information about the 
+magnitude of expression, only considering whether any expression is detected 
+at all. Again, positive values indicate that a greater proportion of cells 
+express the gene in our cluster of interest compared to the other cluster. Note 
+that a pseudo-count is added to avoid undefined log-fold changes when no cells 
+express the gene in either group. 
+The AUC or Cohen’s d is usually the best choice for general purpose marker 
+detection, as they are effective regardless of the magnitude of the expression 
+values. The log-fold change in the detected proportion is specifically useful 
+for identifying binary changes in expression.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+#--- clustering ---#
+g <- buildSNNGraph(sce.pbmc, k=10, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+colLabels(sce.pbmc) <- factor(clust)
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# pairwise comparison
+marker.info <- scoreMarkers(sce.pbmc, colLabels(sce.pbmc))
+
+# show compute scores data frames
+marker.info
+
+# statistics for cluster 1
+colnames(marker.info[["1"]]) 
+
+# select cluster 1
+chosen <- marker.info[["1"]]
+
+# extract all AUCs 
+auc.only <- chosen[,grepl("AUC", colnames(chosen))]
+
+# show mean AUC
+auc.only[order(auc.only$mean.AUC,decreasing=TRUE),]
+
+# extract all log FC cohen 
+cohen.only <- chosen[,grepl("logFC.cohen", colnames(chosen))]
+
+# show mean logFC cohen
+cohen.only[order(cohen.only$mean.logFC.cohen,decreasing=TRUE),]
+
+# extract all log FC detected 
+detect.only <- chosen[,grepl("logFC.detected", colnames(chosen))]
+
+# show mean logFC detected
+detect.only[order(detect.only$mean.logFC.detected,decreasing=TRUE),]
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to identify the genes that drive separation between clusters in my data.
+In particular I would like to obtain the effect sizes for all pairwise 
+comparisons involving a particular cluster.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. Clustering can be then performed using buildSNNGraph() function 
+from scran package.
+The most straightforward approach to marker gene detection involves testing for 
+differential expression (DE) between clusters. If a gene is strongly DE between 
+clusters, it is likely to have driven the separation of cells in the clustering 
+algorithm. Several methods are available to quantify the differences in 
+expression profiles between clusters and obtain a single ranking of genes for 
+each cluster. 
+A general strategy is to compare each pair of clusters and compute scores 
+quantifying the differences in the expression distributions between clusters. 
+The scores for all pairwise comparisons involving a particular cluster are then 
+consolidated into a single DataFrame for that cluster. The scoreMarkers() 
+function from scran returns a list of DataFrames where each DataFrame 
+corresponds to a cluster and each row of the DataFrame corresponds to a gene. 
+In the DataFrame for cluster X, the columns contain the self.average, the mean 
+log-expression in X; other.average, the grand mean across all other clusters; 
+self.detected, the proportion of cells with detected expression in X; 
+other.detected, the mean detected proportion across all other clusters; and 
+finally, a variety of effect size summaries generated from all pairwise 
+comparisons involving X.
+For each cluster, we can then rank candidate markers based on one of these 
+effect size summaries. 
+In addition to pairwise comparisons one can compare each cluster to the average 
+of all other cells. The latter approach however is sensitive to the population 
+composition, which introduces an element of unpredictability to the marker sets 
+due to variation in cell type abundances. (In the worst case, the presence of 
+one subpopulation containing a majority of the cells will drive the selection 
+of top markers for every other cluster, pushing out useful genes that can 
+distinguish between the smaller subpopulations.) Moreover, pairwise comparisons 
+naturally provide more information to interpret the utility of a marker, e.g., 
+by providing log-fold changes to indicate which clusters are distinguished by 
+each gene.
+In the context of marker detection, the area under the curve (AUC) quantifies 
+our ability to distinguish between two distributions in a pairwise comparison. 
+The AUC represents the probability that a randomly chosen observation from our 
+cluster of interest is greater than a randomly chosen observation from the other 
+cluster. A value of 1 corresponds to upregulation, where all values of our 
+cluster of interest are greater than any value from the other cluster; a value 
+of 0.5 means that there is no net difference in the location of the 
+distributions; and a value of 0 corresponds to downregulation. The AUC is 
+closely related to the U statistic in the Wilcoxon ranked sum test (a.k.a., 
+Mann-Whitney U-test).
+Cohen’s d is a standardized log-fold change where the difference in the mean 
+log-expression between groups is scaled by the average standard deviation across 
+groups. In other words, it is the number of standard deviations that separate 
+the means of the two groups. The interpretation is similar to the log-fold 
+change; positive values indicate that the gene is upregulated in our cluster of 
+interest, negative values indicate downregulation and values close to zero 
+indicate that there is little difference. Cohen’s d is roughly analogous to the 
+t-statistic in various two-sample t-tests.
+Finally, we also compute the log-fold change in the proportion of cells with 
+detected expression between clusters. This ignores any information about the 
+magnitude of expression, only considering whether any expression is detected 
+at all. Again, positive values indicate that a greater proportion of cells 
+express the gene in our cluster of interest compared to the other cluster. Note 
+that a pseudo-count is added to avoid undefined log-fold changes when no cells 
+express the gene in either group. 
+The AUC or Cohen’s d is usually the best choice for general purpose marker 
+detection, as they are effective regardless of the magnitude of the expression 
+values. The log-fold change in the detected proportion is specifically useful 
+for identifying binary changes in expression.
+For more complex questions, we may need to interrogate effect sizes from 
+specific comparisons of interest. To do so, we set full.stats=TRUE to obtain 
+the effect sizes for all pairwise comparisons involving a particular cluster. 
+This is returned in the form of a nested DataFrame for each effect size type - 
+in the example below, full.AUC contains the AUCs for the comparisons between 
+cluster 4 and every other cluster.
+Say we want to identify the genes that distinguish cluster 4 from other clusters 
+with high LYZ expression. We subset full.AUC to the relevant comparisons and 
+sort on our summary statistic of choice to obtain a ranking of markers within 
+this subset. This allows us to easily characterize subtle differences between 
+closely related clusters. To illustrate, we use the smallest rank from 
+computeMinRank() to identify the top DE genes in cluster 4 compared to the 
+other LYZ-high clusters (Figure). The demo figure shoes the heatmap of the 
+centered average log-expression values for the top potential marker genes for 
+cluster 4 relative to other LYZ-high clusters in the PBMC dataset. The set of 
+markers was selected as those genes with AUC-derived min-ranks less than or 
+equal to 10.
+Similarly, we can use the full set of effect sizes to define our own summary 
+statistic if the precomputed measures are too coarse. For example, we may be 
+interested in markers that are upregulated against some percentage - say, 80% - 
+of other clusters. This improves the cluster specificity of the ranking by 
+being more stringent than the median yet not as strigent as the minimum. We 
+achieve this by computing and sorting on the 20th percentile of effect sizes.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+#--- clustering ---#
+g <- buildSNNGraph(sce.pbmc, k=10, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+colLabels(sce.pbmc) <- factor(clust)
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# full effect for all pairwise comparisons
+marker.info <- scoreMarkers(sce.pbmc, colLabels(sce.pbmc), full.stats=TRUE)
+
+# select cluster 4
+chosen <- marker.info[["4"]]
+
+# show compute scores data frames
+chosen$full.AUC
+
+# lyz.high clusters based on inspection
+lyz.high <- c("4", "6", "8", "9", "14") 
+
+# subset lyz.high data
+subset <- chosen$full.AUC[,colnames(chosen$full.AUC) %in% lyz.high]
+
+# difference between clusters
+to.show <- subset[computeMinRank(subset) <= 10,]
+
+# show differences
+to.show
+
+# compute 20th percentile of effect sizes
+stat <- rowQuantiles(as.matrix(chosen$full.AUC), p=0.2)
+
+# just showing the basic stats for brevity
+chosen[order(stat, decreasing=TRUE), 1:4] 
+
+# visualize cluster 4 relative to other lyz-high clusters
+plotGroupedHeatmap(sce.pbmc[,colLabels(sce.pbmc) %in% lyz.high],
+    features=rownames(to.show), group="label", center=TRUE, zlim=c(-3, 3))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to identify the genes that drive separation between clusters in my data, 
+specifically when variability is low.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. Clustering can be then performed using buildSNNGraph() function 
+from scran package.
+The most straightforward approach to marker gene detection involves testing for 
+differential expression (DE) between clusters. If a gene is strongly DE between 
+clusters, it is likely to have driven the separation of cells in the clustering 
+algorithm. Several methods are available to quantify the differences in 
+expression profiles between clusters and obtain a single ranking of genes for 
+each cluster. 
+A general strategy is to compare each pair of clusters and compute scores 
+quantifying the differences in the expression distributions between clusters. 
+The scores for all pairwise comparisons involving a particular cluster are then 
+consolidated into a single DataFrame for that cluster. The scoreMarkers() 
+function from scran returns a list of DataFrames where each DataFrame 
+corresponds to a cluster and each row of the DataFrame corresponds to a gene. 
+In the DataFrame for cluster X, the columns contain the self.average, the mean 
+log-expression in X; other.average, the grand mean across all other clusters; 
+self.detected, the proportion of cells with detected expression in X; 
+other.detected, the mean detected proportion across all other clusters; and 
+finally, a variety of effect size summaries generated from all pairwise 
+comparisons involving X.
+For each cluster, we can then rank candidate markers based on one of these 
+effect size summaries. 
+In addition to pairwise comparisons one can compare each cluster to the average 
+of all other cells. The latter approach however is sensitive to the population 
+composition, which introduces an element of unpredictability to the marker sets 
+due to variation in cell type abundances. (In the worst case, the presence of 
+one subpopulation containing a majority of the cells will drive the selection 
+of top markers for every other cluster, pushing out useful genes that can 
+distinguish between the smaller subpopulations.) Moreover, pairwise comparisons 
+naturally provide more information to interpret the utility of a marker, e.g., 
+by providing log-fold changes to indicate which clusters are distinguished by 
+each gene.
+In the context of marker detection, the area under the curve (AUC) quantifies 
+our ability to distinguish between two distributions in a pairwise comparison. 
+The AUC represents the probability that a randomly chosen observation from our 
+cluster of interest is greater than a randomly chosen observation from the other 
+cluster. A value of 1 corresponds to upregulation, where all values of our 
+cluster of interest are greater than any value from the other cluster; a value 
+of 0.5 means that there is no net difference in the location of the 
+distributions; and a value of 0 corresponds to downregulation. The AUC is 
+closely related to the U statistic in the Wilcoxon ranked sum test (a.k.a., 
+Mann-Whitney U-test).
+Cohen’s d is a standardized log-fold change where the difference in the mean 
+log-expression between groups is scaled by the average standard deviation across 
+groups. In other words, it is the number of standard deviations that separate 
+the means of the two groups. The interpretation is similar to the log-fold 
+change; positive values indicate that the gene is upregulated in our cluster of 
+interest, negative values indicate downregulation and values close to zero 
+indicate that there is little difference. Cohen’s d is roughly analogous to the 
+t-statistic in various two-sample t-tests.
+Finally, we also compute the log-fold change in the proportion of cells with 
+detected expression between clusters. This ignores any information about the 
+magnitude of expression, only considering whether any expression is detected 
+at all. Again, positive values indicate that a greater proportion of cells 
+express the gene in our cluster of interest compared to the other cluster. Note 
+that a pseudo-count is added to avoid undefined log-fold changes when no cells 
+express the gene in either group. 
+The AUC or Cohen’s d is usually the best choice for general purpose marker 
+detection, as they are effective regardless of the magnitude of the expression 
+values. The log-fold change in the detected proportion is specifically useful 
+for identifying binary changes in expression.
+As mentioned, the Cohen’s d and AUC calculations consider both the magnitude of 
+the difference between clusters as well as the variability within each cluster. 
+If the variability is lower, it is possible for a gene to have a large effect 
+size even if the magnitude of the difference is small. These genes tend to be 
+somewhat uninformative for cell type identification despite their strong 
+differential expression (e.g., ribosomal protein genes). We would prefer genes 
+with larger log-fold changes between clusters, even if they have higher 
+variability.
+To favor the detection of such genes, we can compute the effect sizes relative 
+to a log-fold change threshold by setting lfc= in scoreMarkers(). The definition 
+of Cohen’s d is generalized to the standardized difference between the observed 
+log-fold change and the specified lfc threshold. Similarly, the AUC is redefined 
+as the probability of randomly picking an expression value from one cluster that 
+is greater than a random value from the other cluster plus lfc. A large positive 
+Cohen’s d and an AUC above 0.5 can only be obtained if the observed log-fold 
+change between clusters is significantly greater than lfc. We demonstrate below 
+by obtaining the top markers for cluster 5 in the PBMC dataset with lfc=2 
+(Figure). The figure shows dot plot of the top potential marker genes (as 
+determined by the mean AUC) for cluster 5 in the PBMC dataset. Each row 
+corrresponds to a marker gene and each column corresponds to a cluster. The 
+size of each dot represents the proportion of cells with detected expression of 
+the gene in the cluster, while the color is proportional to the average 
+expression across all cells in that cluster.
+Note that the interpretation of the AUC and Cohen’s d becomes slightly more 
+complicated when lfc is non-zero. If lfc is positive, a positive Cohen’s d and 
+an AUC above 0.5 represents upregulation. However, a negative Cohen’s d or AUC 
+below 0.5 may not represent downregulation; it may just indicate that the 
+observed log-fold change is less than the specified lfc. The converse applies 
+when lfc is negative, where the only conclusive interpretation occurs for 
+downregulated genes. For the most part, this complication is not too problematic 
+for routine marker detection, as we are mostly interested in upregulated genes 
+with large positive Cohen’s d and AUCs above 0.5.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+#--- variance-modelling ---#
+set.seed(1001)
+dec.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+
+#--- dimensionality-reduction ---#
+set.seed(10000)
+sce.pbmc <- denoisePCA(sce.pbmc, subset.row=top.pbmc, technical=dec.pbmc)
+
+set.seed(100000)
+sce.pbmc <- runTSNE(sce.pbmc, dimred="PCA")
+
+set.seed(1000000)
+sce.pbmc <- runUMAP(sce.pbmc, dimred="PCA")
+
+#--- clustering ---#
+g <- buildSNNGraph(sce.pbmc, k=10, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+colLabels(sce.pbmc) <- factor(clust)
+
+## FOR DEMO PURPOSE WE'LL USE THE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+# compute effect sizes relative to lfc threshold
+marker.info.lfc <- scoreMarkers(sce.pbmc, colLabels(sce.pbmc), lfc=2)
+
+# select cluster 5
+chosen2 <- marker.info.lfc[["5"]] 
+
+# extract mean AUC
+chosen2 <- chosen2[order(chosen2$mean.AUC, decreasing=TRUE),]
+
+# show mean AUC
+chosen2[,c("self.average", "other.average", "mean.AUC")]
+
+# visualize top potential marker genes for cluster 5
+plotDots(sce.pbmc, rownames(chosen2)[1:10], group="label")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain 
+log transformed normalized expression values, variance per gene, and 
+representation of top highly variable genes (HVGs) in lower dimension. I would 
+like to identify the genes that drive separation between clusters in my data,
+taking in account known and uninteresting factors of variation.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells using modelGeneVar() or modelGeneVarByPoisson() function 
+from the scran package. Highly variable genes(HVGs) on which to perform 
+dimensionality reduction can be selected with getTopHVgs() function from scran 
+package and then dimensions reduced by runTSNE() and runUMAP() functions from 
+scater package. Clustering can be then performed using hclust() function 
+from stats package.
+The most straightforward approach to marker gene detection involves testing for 
+differential expression (DE) between clusters. If a gene is strongly DE between 
+clusters, it is likely to have driven the separation of cells in the clustering 
+algorithm. Several methods are available to quantify the differences in 
+expression profiles between clusters and obtain a single ranking of genes for 
+each cluster. 
+A general strategy is to compare each pair of clusters and compute scores 
+quantifying the differences in the expression distributions between clusters. 
+The scores for all pairwise comparisons involving a particular cluster are then 
+consolidated into a single DataFrame for that cluster. The scoreMarkers() 
+function from scran returns a list of DataFrames where each DataFrame 
+corresponds to a cluster and each row of the DataFrame corresponds to a gene. 
+In the DataFrame for cluster X, the columns contain the self.average, the mean 
+log-expression in X; other.average, the grand mean across all other clusters; 
+self.detected, the proportion of cells with detected expression in X; 
+other.detected, the mean detected proportion across all other clusters; and 
+finally, a variety of effect size summaries generated from all pairwise 
+comparisons involving X.
+For each cluster, we can then rank candidate markers based on one of these 
+effect size summaries. 
+In addition to pairwise comparisons one can compare each cluster to the average 
+of all other cells. The latter approach however is sensitive to the population 
+composition, which introduces an element of unpredictability to the marker sets 
+due to variation in cell type abundances. (In the worst case, the presence of 
+one subpopulation containing a majority of the cells will drive the selection 
+of top markers for every other cluster, pushing out useful genes that can 
+distinguish between the smaller subpopulations.) Moreover, pairwise comparisons 
+naturally provide more information to interpret the utility of a marker, e.g., 
+by providing log-fold changes to indicate which clusters are distinguished by 
+each gene.
+In the context of marker detection, the area under the curve (AUC) quantifies 
+our ability to distinguish between two distributions in a pairwise comparison. 
+The AUC represents the probability that a randomly chosen observation from our 
+cluster of interest is greater than a randomly chosen observation from the other 
+cluster. A value of 1 corresponds to upregulation, where all values of our 
+cluster of interest are greater than any value from the other cluster; a value 
+of 0.5 means that there is no net difference in the location of the 
+distributions; and a value of 0 corresponds to downregulation. The AUC is 
+closely related to the U statistic in the Wilcoxon ranked sum test (a.k.a., 
+Mann-Whitney U-test).
+Cohen’s d is a standardized log-fold change where the difference in the mean 
+log-expression between groups is scaled by the average standard deviation across 
+groups. In other words, it is the number of standard deviations that separate 
+the means of the two groups. The interpretation is similar to the log-fold 
+change; positive values indicate that the gene is upregulated in our cluster of 
+interest, negative values indicate downregulation and values close to zero 
+indicate that there is little difference. Cohen’s d is roughly analogous to the 
+t-statistic in various two-sample t-tests.
+Finally, we also compute the log-fold change in the proportion of cells with 
+detected expression between clusters. This ignores any information about the 
+magnitude of expression, only considering whether any expression is detected 
+at all. Again, positive values indicate that a greater proportion of cells 
+express the gene in our cluster of interest compared to the other cluster. Note 
+that a pseudo-count is added to avoid undefined log-fold changes when no cells 
+express the gene in either group. 
+The AUC or Cohen’s d is usually the best choice for general purpose marker 
+detection, as they are effective regardless of the magnitude of the expression 
+values. The log-fold change in the detected proportion is specifically useful 
+for identifying binary changes in expression.
+Large studies may contain factors of variation that are known and not 
+interesting (e.g., batch effects, sex differences). If these are not modelled, 
+they can interfere with marker gene detection - most obviously by inflating the 
+variance within each cluster, but also by distorting the log-fold changes if 
+the cluster composition varies across levels of the blocking factor. To avoid 
+these issues, we specify the blocking factor via the block= argument.
+For each gene, each pairwise comparison between clusters is performed separately 
+in each level of the blocking factor - in the demo case, the plate of origin. By 
+comparing within each batch, we cancel out any batch effects so that they are 
+not conflated with the biological differences between subpopulations. The effect 
+sizes are then averaged across batches to obtain a single value per comparison, 
+using a weighted mean that accounts for the number of cells involved in the 
+comparison in each batch. A similar correction is applied to the mean 
+log-expression and proportion of detected cells inside and outside each cluster.
+We can then visualize the distribution of expression values across clusters for
+the top potential marker genes (as shown, from cluster 1 in the 416b dataset) 
+using plotExpression() function from scater package. In the demo figure each 
+point represents a cell and is colored by the batch of origin.
+The block= argument works for all effect sizes shown above and is robust to 
+differences in the log-fold changes or variance between batches. However, it 
+assumes that each pair of clusters is present in at least one batch. In 
+scenarios where cells from two clusters never co-occur in the same batch, the 
+associated pairwise comparison will be impossible and is ignored during 
+calculation of summary statistics.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE THE 416b DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+#--- variance-modelling ---#
+dec.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+chosen.hvgs <- getTopHVGs(dec.416b, prop=0.1)
+
+#--- batch-correction ---#
+library(limma)
+assay(sce.416b, "corrected") <- removeBatchEffect(logcounts(sce.416b), 
+    design=model.matrix(~sce.416b$phenotype), batch=sce.416b$block)
+
+#--- dimensionality-reduction ---#
+sce.416b <- runPCA(sce.416b, ncomponents=10, subset_row=chosen.hvgs,
+    exprs_values="corrected", BSPARAM=BiocSingular::ExactParam())
+
+set.seed(1010)
+sce.416b <- runTSNE(sce.416b, dimred="PCA", perplexity=10)
+
+#--- clustering ---#
+my.dist <- dist(reducedDim(sce.416b, "PCA"))
+my.tree <- hclust(my.dist, method="ward.D2")
+
+library(dynamicTreeCut)
+my.clusters <- unname(cutreeDynamic(my.tree, distM=as.matrix(my.dist),
+    minClusterSize=10, verbose=0))
+colLabels(sce.416b) <- factor(my.clusters)
+
+## FOR DEMO PURPOSE WE'LL USE THE 416b DATASET CREATED AS ABOVE
+
+library(scran)
+# pairwise comparison with blocking factor
+m.out <- scoreMarkers(sce.416b, colLabels(sce.416b), block=sce.416b$block)
+
+# select cluster 1
+demo <- m.out[["1"]] 
+
+# order and extract median log FC cohen 
+ordered <- demo[order(demo$median.logFC.cohen, decreasing=TRUE),]
+
+# show data
+ordered[,1:4]
+
+library(scater)
+# visualization of expression values across clusters
+plotExpression(sce.416b, features=rownames(ordered)[1:6],
+    x="label", colour_by="block")
+
+```
+
+--- TASK END

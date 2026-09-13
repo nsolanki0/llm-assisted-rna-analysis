@@ -1,0 +1,500 @@
+---
+title: "prompt/completion pairs chapter 4"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main
+types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the
+rows and the patients in the columns. How can I use this data set to cluster the patients and display the values as a heatmap? 
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. We will now use this data set to cluster the patients and display the values as a heatmap and a dendrogram.
+The heatmap shows the expression values of genes across patients in a color coded manner. The heatmap function,
+`pheatmap()`, that we will use performs the clustering as well. The matrix that contains gene expressions has the genes in
+the rows and the patients in the columns. Therefore, we will also use a column-side color code to mark the patients based
+on their leukemia type. For this, we can set the annotation for each sample by taking the first three letters of the
+column names as substring. For the hierarchical clustering, we will use Ward's method designated by the
+`clustering_method` argument to the `pheatmap()` function. 
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Load needed library
+library(pheatmap)
+
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+# Set the row names of our annotation_col as column names of the matrix
+rownames(annotation_col) <- colnames(mat)
+
+# Use pheatmap() to create heatmap. Use "ward.D2" as clustering method as asked.
+pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
+         annotation_col=annotation_col,
+         scale="none", clustering_method = "ward.D2",
+         clustering_distance_cols="euclidean",
+         )
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main
+types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the
+rows and the patients in the columns. How can I see the relationship of the clusters using hierarchical clustering
+with the "complete linkage" and plotting the dendrogram? I would also like to visualize the cluster I will get if 
+I cut the tree at `height = 80`. What is the number of samples for each cluster when I cut the tree at `height = 80`? 
+How many samples are there in each cluster when I cut so that there are 5 clusters?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then, we will do the hierarchical clustering using `hclust()` with Euclidian distance and the default "complete
+linkage". We want to calculate the distance between columns, so we transposed the matrix. We will also plot the cluster
+dendrogram and add red rectangle to the plot at the `height = 80`. This visualizes the clusters we would get if we cut the 
+tree at that height. After we will cut the tree using `cutree()` function at the height 80, and show the number of samples
+for each cluster using `table()`. We will also cut the tree so that there are 5 clusters by specifying `k = 5` in
+the `cutree()` function and show the number of samples for each cluster.
+
+
+```{r,eval=FALSE} 
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Hierarchical clustering using hclust() with Euclidian distance. We want to calculate the distance between columns, so we transposed the matrix. 
+hcl <- hclust(dist(t(mat)))
+
+# Plot the cluster dendrogram with no labels for the leaves. hang = -1 to control how far the labels are from the branches.
+plot(hcl,labels = FALSE, hang= -1)
+
+# Add red rectangle to the plot at the height = 80
+rect.hclust(hcl, h = 80, border = "red")
+
+# cut tree so that there are 5 clusters
+clu.k5 <- cutree(hcl,k=5) 
+
+# cut tree/dendrogram from height 80
+clu.h80 <- cutree(hcl,h=80) 
+
+# number of samples for each cluster when we cut the tree so that there are 5 clusters
+table(clu.k5) 
+
+# number of samples for each cluster when we cut the tree from height 80
+table(clu.h80)
+
+
+```
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main types of
+leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the rows
+and the patients in the columns. How do I use the k-means clustering method on this gene expression data set and check
+the percentage of each leukemia type in each cluster? Also, how can I use the k-medoids clustering method on the gene
+expression set and check the percentage of each leukemia type in each cluster? I also want to visualize the clustering
+from partitioning using "multi-dimensional scaling" and plot the patients in a 2D plot color coded by their cluster assignments.
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. After setting a seed for reproducibility, we will run the K-means clustering algorithm using the function
+`kmeans()`. Since our original matrix has the genes in the rows and the patients in the columns, we have to transpose the
+matrix so that we calculate distances between patients. We will initialize the algorithm with `centers = 5`. We can check
+the percentage of each leukemia type in each cluster after doing the K-means clustering.
+For that we will make a data frame with rows as the Leukemia type and columns as our clusters to see if each of the 5
+clusters predominantly represents one of the 4 leukemia types or the control.
+Then, we can use the k-medoids clustering method by using the k-medoids clustering function `pam()` from the `cluster`
+package. We can check the percentage of each leukemia type in each cluster just as we did it for the K-means clustering.
+For visualization of the clustering from partitioning methods we can compress the between-patient-distances to a
+2-dimensional plot.  For this we will first calculate euclidean distances between patients with `dist()` function,
+and calculate the "multi-dimensional scaling" with `cmdscale()` function. Then, we will plot the patients in the 2D space
+with `plot()` and add legend for cluster colors.
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# K-means clustering
+# Setting seed for reproducibility
+set.seed(101)
+# we have to transpose the matrix with t() so that we calculate distances between patients
+kclu <- kmeans(t(mat),centers=5)  
+
+# number of data points in each cluster
+table(kclu$cluster)
+
+# Check the percentage of each leukemia type in each cluster
+type2kclu <- data.frame(
+                    LeukemiaType =substr(colnames(mat),1,3),
+                    cluster=kclu$cluster)
+# Visualize it as a table
+table(type2kclu)
+
+
+# K-medoids Clustering
+# Use the k-medoids clustering function `pam()` from the `cluster` package.
+kmclu <- cluster::pam(t(mat),k=5) 
+
+# make a data frame with Leukemia type and cluster id
+type2kmclu <- data.frame(
+                    LeukemiaType =substr(colnames(mat),1,3),
+                    cluster=kmclu$cluster)
+
+table(type2kmclu)
+
+# Visualization of the clustering from partitioning methods
+# Calculate distances
+dists <- dist(t(mat))
+
+# calculate MDS
+mds <- cmdscale(dists)
+
+# plot the patients in the 2D space
+plot(mds,pch=19,col=rainbow(5)[kclu$cluster])
+
+# set the legend for cluster colors
+legend("bottomright",
+       legend=paste("clu",unique(kclu$cluster)),
+       fill=rainbow(5)[unique(kclu$cluster)],
+       border=NA,box.col=NA)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main types of
+leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the rows
+and the patients in the columns. How can I determine the optimal number of clusters using silhouette values for k-medoids?
+I want to see the silhouette value in plot for `k = 5`. Then I want to calculate the average silhouette value across k
+values between 2 and 7 and plot them. I also want to calculate the gap statistic for my patient gene expression dataset
+with k-medoids and plot them across k values 1 to 8. How can I do that?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first calculate silhouette values for k-medoids clustering with the `pam()` function with `k = 5` and
+plot the resulting plot. With this we can see the silhouette values for each cluster at `k = 5`. We will then calculate the
+average silhouette value for different k values and compare. We will use `sapply()` function to get average silhouette
+values across k values between 2 and 7. Within `sapply()` there is an anonymous function that that does the clustering and
+calculates average silhouette values for each k. We will plot the average silhouette values across k values between 2 and
+7 to visualize. For the gap statistic, we can easily use the `cluster::clusGap()` function. We will define the clustering
+function and put it in the `clusGap()` with maximum value of k as 8 and number of bootstrap samples as 50.
+We will then plot the Gap statistic value across k values between 1 and 8.
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Silhouette
+
+# Load the library
+library(cluster)
+# Set the seed
+set.seed(101)
+
+# Calculate the sihouette values for k-medoids clustering with the `pam()` function with `k = 5`
+pamclu <- cluster::pam(t(mat),k=5)
+# Plot the resulting plot
+plot(silhouette(pamclu),main=NULL)
+
+# Get average silhouette values across k values between 2 and 7
+Ks <- sapply(2:7,
+    function(i) 
+      summary(silhouette(pam(t(mat),k=i)))$avg.width)
+# Plot the Ks
+plot(2:7,Ks,xlab="k",ylab="av. silhouette",type="b",
+     pch=19)
+
+# Gap Statistic
+
+set.seed(101)
+# define the clustering function
+pam1 <- function(x,k) 
+  list(cluster = pam(x,k, cluster.only=TRUE))
+
+# calculate the gap statistic with maximum number of k as 8.
+pam.gap <- clusGap(t(mat), FUN = pam1, K.max = 8,B=50)
+
+# plot the gap statistic accross k values
+plot(pam.gap, main = "Gap statistic for the 'Leukemia' data")
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main types of
+leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes. 
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the rows 
+and the patients in the columns. I want to represent the patients with expression profiles of just two genes, CD33
+(ENSG00000105383) and PYGL (ENSG00000100504). I want to do the principal component analysis, in which I draw the
+principal components over the original scatter plot and show the new coordinate system based on the principal components
+in the next plot. How can I do that?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. We can create the subset of the data with two genes only by extracting information for those whose rownames are one
+of the two gene codes. For the sub_matrix we transpose the matrix so that the samples are on the columns, and use `scale()`
+function to center the data. We then will first plot our genes of interest as scatter plot. To color the points based on
+Leukemia types, we set the leukemia type annotation for each sample. We also added the legend for the leukemia types. To
+plot the eigenvectors, we will calculate the PCA with the `princomp()` function - this function returns the new coordinate
+s as well. Then we will plot the direction of eigenvectors which were returned by `princomp()`. Lastly we will plot the
+samples in the new coordinate system and plot the new coordinate basis vectors.
+
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+par(mfrow=c(1,2))
+
+# create the subset of the data with two genes only
+# notice that we transpose the matrix so samples are on the columns
+sub.mat <- scale(t(mat[rownames(mat) %in% c("ENSG00000100504","ENSG00000105383"),]))
+
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+
+# ploting our genes of interest as scatter plots
+plot(sub.mat[colnames(sub.mat)=="ENSG00000100504",],
+     sub.mat[colnames(sub.mat)=="ENSG00000105383",],
+     pch=19,
+     ylab="CD33 (ENSG00000105383)",
+     xlab="PYGL (ENSG00000100504)",
+     col=as.factor(annotation_col$LeukemiaType),
+     xlim=c(-2,2),ylim=c(-2,2))
+
+# create the legend for the Leukemia types
+legend("bottomright",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# calculate the PCA only for our genes and all the samples
+pr <- princomp(sub.mat)
+
+# plot the direction of eigenvectors
+# pr$loadings returned by princomp has the eigenvectors
+arrows(x0=0, y0=0, x1 = pr$loadings[1,1], 
+       y1 = pr$loadings[2,1],col="pink",lwd=3)
+arrows(x0=0, y0=0, x1 = pr$loadings[1,2], 
+       y1 = pr$loadings[2,2],col="gray",lwd=3)
+
+# plot the samples in the new coordinate system
+plot(-pr$scores,pch=19,
+     col=as.factor(annotation_col$LeukemiaType),
+     ylim=c(-2,2),xlim=c(-4,4))
+
+# plot the new coordinate basis vectors
+arrows(x0=0, y0=0, x1 =-2, 
+       y1 = 0,col="pink",lwd=3)
+arrows(x0=0, y0=0, x1 = 0, 
+       y1 = -1,col="gray",lwd=3)
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main types of
+leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the rows
+and the patients in the columns. I first want to do a singular value decomposition (SVD) on the matrix and use that
+to plot samples on the reduced dimensions. I also want to perfom the PCA on transposed matrix and plot the sampes on the
+reduced coordinates. I also want to do a independent component analysis (ICA) to extract 2 components and plot the
+rows of matrix S. Lastly, I want to use non-negative matrix factorization algorithms to decompose the matrix and plot the
+values of metagenes (rows of H). How can I complete these tasks? 
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. To color the points based on Leukemia types, we set the leukemia type annotation for each sample.
+Then, we will start with the singular value decomposition (SVD). We will apply the function `svd()` on the scaled matrix.
+Then we can get projection on eigenassays by doing U^T * X operation, which is same as SV^T.
+We will project the columns in our original expression data on eigenarrays and use the first two dimensions in the 
+scatter plot. We will also perform the PCA this time with the `prcomp()` function on the transposed genes-by-samples 
+matrix to get similar information, and plot the samples on the reduced coordinates. For the independent component analysis 
+(ICA), we will load the library `fastICA`. We will apply `fastICA()` function on the transposed matrix and specify that
+`n.comp = 2` to extract 2 components. We will plot the rows of matrix S which represents metagenes. For the non-negative
+matrix factorization we will load the library `NMF`. We will apply `nmf()` function on the matrix with `rank = 3` for
+specification of factorization rank of 3, and `seed = "nndsvd"` to indicate the non-negative double singular value
+decomposition. With `basis()` we get the matrix W, and with `coef()` we get the matrix H. We will plot the values of
+metagenes (rows of H) for components 1 and 3.
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+
+# 1. Singular value decomposition (SVD): X = USV^T
+
+par(mfrow=c(1,2))
+
+# apply SVD on the scaled matrix
+d <- svd(scale(mat)) 
+
+# projection on eigenassays : U^T * X = SV^T 
+assays <- t(d$u) %*% scale(mat) 
+
+# Plot the eigenassays
+plot(assays[1,],assays[2,],pch=19,
+     col=as.factor(annotation_col$LeukemiaType))
+
+# apply PCA on transposed matrix
+pr <- prcomp(t(mat),center=TRUE,scale=TRUE) 
+
+# plot new coordinates from PCA, projections on eigenvectors
+plot(pr$x[,1],pr$x[,2],col=as.factor(annotation_col$LeukemiaType))
+
+# 2. Independent component analysis (ICA): X = SA
+
+# Load the fastICA library
+library(fastICA)
+# apply ICA
+ica.res <- fastICA(t(mat),n.comp=2) 
+
+# plot reduced dimensions
+plot(ica.res$S[,1],ica.res$S[,2],col=as.factor(annotation_col$LeukemiaType))
+
+# 3. Non-negative matrix factorization (NMF): X = WH
+
+# Load the NMF library
+library(NMF)
+
+# NMF with 3 components/factors
+res <- NMF::nmf(mat,rank=3,seed="nndsvd") 
+w <- basis(res) # get W
+h <- coef(res)  # get H
+
+# plot 1st factor against 3rd factor
+plot(h[1,],h[3,],col=as.factor(annotation_col$LeukemiaType),pch=19)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set with gene expression values from 60 bone marrow samples of patients with one of the four main types of
+leukemia (ALL, AML, CLL, CML) or no-leukemia controls, trimmed down to the top 1000 most variable genes.
+The file is called "leukemiaExpressionSubset.txt". The matrix that contains gene expressions has the genes in the rows
+and the patients in the columns. I want to do a classical multi-dimensional scaling and isotonic multi-dimensional scaling 
+on the matrix and plot them in a scatterplot.I also want to use t-Distributed Stochastic Neighbor Embedding (t-SNE) and
+plot them. How can I do that? 
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. To color the points based on Leukemia types, we set the leukemia type annotation for each sample.
+Then we can run the classical MDS using `cmdscale()` function on the distance between samples of the transposed matrix.
+For isotonic MDS, we can use `MASS::isoMDS()` function. Then we can plot the Leukemia gene expression values per patient
+on reduced dimensions by classical MDS and isometric MDS.
+For the t-SNE we will first load the library `"Rtsne"`. Then we will set the random seed because the t-SNE optimization
+algorithm has random starting points and this might create non-identical results in every run. After calculating the t-SNE
+lower dimension embeddings we will plot the points in a 2D scatter plot and create the legend for the leukemia types.
+
+```{r,eval=FALSE}  
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+
+# 1. Multi-dimensional scaling
+
+# Classical MDS
+mds <- cmdscale(dist(t(mat)))
+# Isotonic MDS
+isomds <- MASS::isoMDS(dist(t(mat)))
+
+# plot the patients in the 2D space
+par(mfrow=c(1,2))
+# Classical MDS
+plot(mds,pch=19,col=as.factor(annotation_col$LeukemiaType),
+     main="classical MDS")
+# Isotonic MDS
+plot(isomds$points,pch=19,col=as.factor(annotation_col$LeukemiaType),
+     main="isotonic MDS")
+
+# 2. t-Distributed Stochastic Neighbor Embedding (t-SNE)
+
+# Load the library
+library("Rtsne")
+
+# Set a seed for reproducible results
+set.seed(42) 
+
+# Run TSNE
+tsne_out <- Rtsne(t(mat),perplexity = 10) 
+#image(t(as.matrix(dist(tsne_out$Y))))
+
+# Show the objects in the 2D tsne representation
+plot(tsne_out$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19)
+
+# create the legend for the Leukemia types
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+```
+--- TASK END
+

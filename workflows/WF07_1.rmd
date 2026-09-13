@@ -1,0 +1,82 @@
+---
+title: "prompt/completion pairs chapter 7"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a variable called `qcRes` which is a
+RqcResultSet object which holds information
+from my sequence reads. I want to plot 
+the sequence quality per cycle. How do I do 
+this?
+
+completion:
+To plot the sequence quality per cycle for a RqcResultSet object, 
+you can make use of the`rqcCycleQualityBoxPlot` function from the 
+`Rqc` library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(Rqc)
+
+# plot quality per cycle. 
+rqcCycleQualityBoxPlot(qcRes)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a variable called `qcRes` which is a
+RqcResultSet object which holds information
+from my sequence reads.
+I want to visualize the nucleotide proportions for each position.
+How do I do this?
+
+completion:
+To plot the nucleotide proportion for each position 
+for a RqcResultSet object, you can make use of the
+`rqcCycleBaseCallsLinePlot` function from the 
+`Rqc` library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(Rqc)
+
+# plot nucleotide proportion per position
+rqcCycleBaseCallsLinePlot(qcRes)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a variable called `qcRes` which is a
+RqcResultSet object which holds information
+from my sequence reads. I want to plot 
+the read frequency. How do I do this?
+
+completion:
+to plot the read frequency, you can make
+use of the `rqcReadFrequencyPlot` function 
+from the `Rqc` library. Here is how you do it:
+
+```{r,eval=FALSE}
+require(Rqc)
+
+# plot read frequency plot
+rqcReadFrequencyPlot(qcRes)
+
+```
+
+--- TASK END

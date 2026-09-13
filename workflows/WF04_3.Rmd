@@ -1,0 +1,750 @@
+---
+title: "prompt/completion pairs chapter 4"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I would first like to observe the effect of data transformation with scaling. How can I take the logarithm of the data
+with the `log2()` function and then scale the expression matrix using `scale()` function? After that, I would like to
+also make boxplots of the unscaled and scaled data sets using the `boxplot()` function.
+
+With the same data set, use the ward.d distance in hierarchical clustering and plot multiple heatmaps.
+How can I plot a heatmap with a dendrogram? I want to create the heatmap for both scaled and unscaled matrix.
+
+For the transformed and untransformed data sets, I want to use the silhouette for deciding number of clusters using
+hierarchical clustering. I also want to plot them. How can I do that?
+
+Lastly, I want to use the Gap Statistic for deciding the number of clusters in hierarchical clustering.
+Is it the same number of clusters identified by two methods?
+
+completion:
+
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first start with scaling the data by using `log2()` and `scale()` function.
+We can make boxplots using `boxplots()` to compare the unscaled and scaled expression matrices.
+
+Then we will load the `pheatmap` library to create heatmaps using ward.d distance. To create the heatmap, we will first
+set the leukemia type annotation for each sample by taking the first three letters of the column names as substring:
+for example, ALL_GSM330151.CEL -> ALL. Then we will set the row names of our annotation_col as our column names of the
+matrix. Then we can use the function `pheatmap()`, using "ward.D2" as clustering method as asked.
+We will do the process twice for unscaled and scaled matrices.
+
+Then we will use the silhouette for deciding number of clusters using hierarchical clustering. First we will calculate
+the silhouette values for k-medoids clustering with the pam() function with k = 5 and plot the values. Then we will
+determine best k values by testing k=2 to k=7 using sapply and plot the results. We will do the process twice for
+unscaled and scaled matrices.
+
+Lastly we will use Gap Statistic to decide the number of clusters for unscaled and scaled data. First defining a
+clustering function is needed, then we can use the `clusGap()` function to determine the Gap Statistic.
+Here we set the maximum number of clusters to be 8 and the number of bootstrap samples to 50.
+We will find the Gap statistics for unscaled and scaled data and plot them.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# 1. Observe the effect of data transformation with scaling
+
+# Take Logarithm and then Scale.
+scaled_mat <- scale(log2(mat))
+
+# Make boxplots for unscaled and scaled expression matrix
+par(mfrow=c(1,2))
+boxplot(mat, xlab="Gene",ylab="Expression",col="lightblue",main="Unscaled Expression Matrix")
+boxplot(scaled_mat, xlab="Gene",ylab="Expression",col="lightpink",main="Scaled Expression Matrix")
+
+# 2. Use ward.d distance in hierarchical clustering and plot multiple heatmaps
+
+# Load needed library
+library(pheatmap)
+
+# Heatmap for unscaled expression matrix
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+# Set the row names of our annotation_col as column names of the matrix
+rownames(annotation_col) <- colnames(mat)
+
+# Use pheatmap() to create heatmap. Use "ward.D2" as clustering method as asked.
+pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
+         annotation_col=annotation_col,scale="none",
+         clustering_method = "ward.D2",clustering_distance_cols="euclidean",
+         main = "Unscaled expression matrix")
+
+# Heatmap for scaled expression matrix
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(scaled_mat),1,3))
+# Set the row names of our annotation_col as column names of the matrix
+rownames(annotation_col) <- colnames(scaled_mat)
+
+# Use pheatmap() to create heatmap. Use "ward.D2" as clustering method as asked.
+pheatmap(scaled_mat,show_rownames=FALSE,show_colnames=FALSE,
+         annotation_col=annotation_col,scale="none",
+         clustering_method = "ward.D2",clustering_distance_cols="euclidean",
+         main = "Scaled expression matrix")
+
+# 3. Use the silhouette for deciding number of clusters using hierarchical clustering
+
+# Load the needed library
+library(cluster)
+
+# Set random number seed, so that the random numbers from the text is the same when you run the code.
+set.seed(101)
+
+# For unscaled data set
+# Calculate the silhouette values for k-medoids clustering with the pam() function with k = 5
+pamclu <- cluster::pam(t(mat),k=5)
+# Plot the silhouette values
+plot(silhouette(pamclu),main="Unscaled data")
+
+# Determine best k values by testing k=2 to k=7 using sapply
+Ks <- sapply(2:7,
+            function(i)
+              summary(silhouette(pam(t(mat),k=i)))$avg.width)
+# Plot the k values in accordance with average silhouette values
+plot(2:7,Ks,xlab="k",ylab="avg.silhouette",type="b",pch=19)
+
+# For scaled data set
+# Calculate the silhouette values for k-medoids clustering with the pam() function with k = 5
+pamclu <- cluster::pam(t(scaled_mat),k=5)
+# Plot the silhouette values
+plot(silhouette(pamclu),main="Scaled data")
+
+# Determine best k values by testing k=2 to k=7 using sapply
+Ks <- sapply(2:7,
+            function(i)
+              summary(silhouette(pam(t(scaled_mat),k=i)))$avg.width)
+# Plot the k values in accordance with average silhouette values
+plot(2:7,Ks,xlab="k",ylab="avg.silhouette",type="b",pch=19)
+
+
+# 4 Gap Statistic to decide the number of clusters
+set.seed(101)
+
+# Clustering Function
+pam1 <- function(x,k)
+  list(cluster = pam(x,k,cluster.only=TRUE))
+
+# Gap Statistic for unscaled data
+# K.max: max number of clusters to consider(at least 2)
+# FUN: Clustering Function
+# B: Number of Bootstrap samples
+pam.gap <- clusGap(t(mat), FUN = pam1, K.max=8, B=50)
+plot(pam.gap, main="Gap Statistic(unscaled)")
+
+# Gap Statistic for scaled data
+pam.gap1 <- clusGap(t(scaled_mat), FUN = pam1, K.max=8, B=50)
+plot(pam.gap1, main="Gap Statistic(scaled)")
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I would like to observe the effect of data transformation with scaling. How can I take the logarithm of the data with the
+`log2()` function and then scale the expression matrix using `scale()` function? After that, I would like to also make
+boxplots of the unscaled and scaled data sets using the `boxplot()` function.
+
+
+completion:
+
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first start with scaling the data by using `log2()` and `scale()` function.
+We can make boxplots using `boxplots()` to compare the unscaled and scaled expression matrices.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Observe the effect of data transformation with scaling
+
+# Take Logarithm and then Scale.
+scaled_mat <- scale(log2(mat))
+
+# Make boxplots for unscaled and scaled expression matrix
+par(mfrow=c(1,2))
+boxplot(mat, xlab="Gene",ylab="Expression",col="lightblue",main="Unscaled Expression Matrix")
+boxplot(scaled_mat, xlab="Gene",ylab="Expression",col="lightpink",main="Scaled Expression Matrix")
+
+
+```
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I would like to observe the effect of data transformation with scaling.
+How can I take the logarithm of the data with the `log2()` function and then scale the expression matrix using `scale()` function?
+I would like to use the ward.d distance in hierarchical clustering and plot multiple heatmaps.
+How can I plot a heatmap with a dendrogram? I want to create the heatmap for both scaled and unscaled matrix.
+
+completion:
+
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first start with scaling the data by using `log2()` and `scale()` function. 
+Then we will load the `pheatmap` library to create heatmaps using ward.d distance. To create the heatmap, we will first
+set the leukemia type annotation for each sample by taking the first three letters of the column names as substring:
+for example, ALL_GSM330151.CEL -> ALL. Then we will set the row names of our annotation_col as our column names of the
+matrix. Then we can use the function `pheatmap()`, using "ward.D2" as clustering method as asked. We will do the process
+twice for unscaled and scaled matrices.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Take Logarithm and then Scale.
+scaled_mat <- scale(log2(mat))
+
+# Use ward.d distance in hierarchical clustering and plot multiple heatmaps
+
+# Load needed library
+library(pheatmap)
+
+# Heatmap for unscaled expression matrix
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(mat),1,3))
+# Set the row names of our annotation_col as column names of the matrix
+rownames(annotation_col) <- colnames(mat)
+
+# Use pheatmap() to create heatmap. Use "ward.D2" as clustering method as asked.
+pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
+         annotation_col=annotation_col,scale="none",
+         clustering_method = "ward.D2",clustering_distance_cols="euclidean",
+         main = "Unscaled expression matrix")
+
+# Heatmap for scaled expression matrix
+# Set the leukemia type annotation for each sample by taking the first three letters of the column names as substring
+annotation_col <- data.frame(LeukemiaType = substr(colnames(scaled_mat),1,3))
+# Set the row names of our annotation_col as column names of the matrix
+rownames(annotation_col) <- colnames(scaled_mat)
+
+# Use pheatmap() to create heatmap. Use "ward.D2" as clustering method as asked.
+pheatmap(scaled_mat,show_rownames=FALSE,show_colnames=FALSE,
+         annotation_col=annotation_col,scale="none",
+         clustering_method = "ward.D2",clustering_distance_cols="euclidean",
+         main = "Scaled expression matrix")
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+
+I have this dataset "leukemiaExpressionSubset.rds" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I would first like to observe the effect of data transformation with scaling. How can I take the logarithm of the data
+with the `log2()` function and then scale the expression matrix using `scale()` function?
+For the transformed and untransformed data sets, I want to use the silhouette for deciding number of clusters using
+hierarchical clustering. I also want to plot them. How can I do that?
+
+completion:
+
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first start with scaling the data by using `log2()` and `scale()` function.
+Then we will use the silhouette for deciding number of clusters using hierarchical clustering. First we will calculate
+the silhouette values for k-medoids clustering with the pam() function with k = 5 and plot the values. Then we will
+determine best k values by testing k=2 to k=7 using sapply and plot the results. We will do the process twice for
+unscaled and scaled matrices.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Observe the effect of data transformation with scaling
+
+# Take Logarithm and then Scale.
+scaled_mat <- scale(log2(mat))
+
+# Use the silhouette for deciding number of clusters using hierarchical clustering
+
+# Load the needed library
+library(cluster)
+
+# Set random number seed, so that the random numbers from the text is the same when you run the code.
+set.seed(101)
+
+# For unscaled data set
+# Calculate the silhouette values for k-medoids clustering with the pam() function with k = 5
+pamclu <- cluster::pam(t(mat),k=5)
+# Plot the silhouette values
+plot(silhouette(pamclu),main="Unscaled data")
+
+# Determine best k values by testing k=2 to k=7 using sapply
+Ks <- sapply(2:7,
+            function(i)
+              summary(silhouette(pam(t(mat),k=i)))$avg.width)
+# Plot the k values in accordance with average silhouette values
+plot(2:7,Ks,xlab="k",ylab="avg.silhouette",type="b",pch=19)
+
+# For scaled data set
+# Calculate the silhouette values for k-medoids clustering with the pam() function with k = 5
+pamclu <- cluster::pam(t(scaled_mat),k=5)
+# Plot the silhouette values
+plot(silhouette(pamclu),main="Scaled data")
+
+# Determine best k values by testing k=2 to k=7 using sapply
+Ks <- sapply(2:7,
+            function(i)
+              summary(silhouette(pam(t(scaled_mat),k=i)))$avg.width)
+# Plot the k values in accordance with average silhouette values
+plot(2:7,Ks,xlab="k",ylab="avg.silhouette",type="b",pch=19)
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I would first like to observe the effect of data transformation with scaling. How can I take the logarithm of the data
+with the `log2()` function and then scale the expression matrix using `scale()` function?
+Then I want to use the Gap Statistic for deciding the number of clusters in hierarchical clustering. 
+
+completion:
+
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will first start with scaling the data by using `log2()` and `scale()` function.
+After that we will use Gap Statistic to decide the number of clusters for unscaled and scaled data. First defining a
+clustering function is needed, then we can use the `clusGap()` function to determine the Gap Statistic. Here we set the
+maximum number of clusters to be 8 and the number of bootstrap samples to 50. We will find the Gap statistics for
+unscaled and scaled data and plot them.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# The effect of data transformation with scaling
+
+# Take Logarithm and then Scale.
+scaled_mat <- scale(log2(mat))
+
+# Gap Statistic to decide the number of clusters
+set.seed(101)
+
+# Clustering Function
+pam1 <- function(x,k)
+  list(cluster = pam(x,k,cluster.only=TRUE))
+
+# Gap Statistic for unscaled data
+# K.max: max number of clusters to consider(at least 2)
+# FUN: Clustering Function
+# B: Number of Bootstrap samples
+pam.gap <- clusGap(t(mat), FUN = pam1, K.max=8, B=50)
+plot(pam.gap, main="Gap Statistic(unscaled)")
+
+# Gap Statistic for scaled data
+pam.gap1 <- clusGap(t(scaled_mat), FUN = pam1, K.max=8, B=50)
+plot(pam.gap1, main="Gap Statistic(scaled)")
+```
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+
+I want to do PCA(Principal component analysis) on the expression matrix using the `princomp()` function and then use the
+screeplot() function to visualize the explained variation by eigenvectors. How do I determine how many top components
+explain 95% of the variation?
+
+Then I want to remove eigenvectors that make up 95% of variation and reconstruct the matrix using SVD, then calculate the
+reconstruction error as the difference between original and reconstructed matrix.
+
+How do I produce a 10-component ICA(Independent component analysis) from the expression data set? How do I remove each
+component and measure the reconstruction error without that component? I want to rank the components by decreasing
+reconstruction-error.
+
+Lastly I want to use the Rtsne() function on the leukemia expression data set and try to increase and decrease perplexity
+t-sne, and describe the observed changes in 2D plots.
+
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then first we will do PCA on the expression matrix using `princomp()` function and use `screenplot()` to
+visualize. To calculate how many top components explain 95% of the variation, we will first calculate the cumulative
+variance and find out at which point the cumulative variance is over 95.
+
+For the next part, we will first use `svd()` to create a svd matrix. Then we will equalize eigenvalue for the top
+components that make up 95% of variation to 0 and then reconstruct the matrix. We can calculate the reconstruction error
+by getting the difference of the original and reconstructed matrix.
+
+To do the ICA, we will first load the `library(fastICA)` and perform ICA with 10 components. To measure the
+reconstruction error without the component for the 10-component, we will first initialize a list to store the errors.
+Then we can create a for-loop from 1 to 10 that remove the i-th component and measure reconstruction error each time.
+Using the list of reconstruction errors, we can rank the components by decreasing reconstruction error.
+
+For the last part, we will load the `library("Rtsne")`. We will run TSNE using `Rtsne()` function create a plot and
+legend to visualize. We will do it for 4 different perplexity - 4,8,12,16 - but you can also change the perplexity as you
+want. However, it should remain so that 3 * perplexity < nrow(X) - 1. 
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# 1. Do PCA on the expression matrix and visualize
+pr <- princomp(mat, scale=TRUE)
+screeplot(pr, type = "line")
+
+# How many top components explain 95% of variation? 24
+cumulative_variance <- cumsum(pr$sdev^2) / sum(pr$sdev^2)
+top_components <- sum(cumulative_variance <= 0.95) + 1
+
+# 2. X = USV^T
+# Use SVD
+svd_mat <- svd(mat)
+
+# Equalize eigenvalue to 0 for top components for variation
+svd_mat$d[1:24] <- 0
+
+# reconstruct the matrix
+re_mat <- svd_mat$u %*% diag(svd_mat$d) %*% t(svd_mat$v)
+
+# Calculate the reconstruction error as the difference between original and reconstructed matrix
+reconst_error <- mat - re_mat
+
+# 3. X = SA
+library(fastICA)
+
+# Perform ICA with 10 components
+ica_res <- fastICA(t(mat), n.comp = 10)
+
+# Initialize a list to store the reconstruction errors
+recon_err <- vector("list", 10)
+
+# Remove each component and measure reconstruction error
+for (i in 1:10) {
+  # Remove the i-th component from the ICA result
+  mod_ica_res <- ica_res
+  mod_ica_res$S[i, ] <- 0  # Setting the i-th component to 0
+  
+  # Reconstruct the data without the i-th component
+  recon_mat <- (mod_ica_res$S) %*% (mod_ica_res$A)
+  
+  # Calculate the reconstruction error
+  recon_err[[i]] <- t(mat) - recon_mat
+}
+
+# Rank the components by decreasing reconstruction error
+sorted_components <- order(sapply(recon_err, function(error) sum(error^2)), decreasing = TRUE)
+
+# 4
+# Load the library
+library("Rtsne")
+
+# Set random number seed, so that the random numbers from the text is the same when you run the code.
+set.seed(42)
+
+# To put 4 graphs into columns and rows of 2.
+par(mfrow=c(2,2))
+
+# Run TSNE
+tsne_out4 <- Rtsne(t(mat),perplexity = 4)
+
+# Show the objects in the 2D tsne representation
+plot(tsne_out4$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 4")
+# create the legend for the Leukemia types
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 8
+tsne_out8 <- Rtsne(t(mat),perplexity = 8)
+plot(tsne_out8$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 8")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 12
+tsne_out12 <- Rtsne(t(mat),perplexity = 12)
+plot(tsne_out12$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 12")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 16
+tsne_out16 <- Rtsne(t(mat),perplexity = 16)
+plot(tsne_out16$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 16")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+
+I want to do PCA(Principal component analysis) on the expression matrix using the `princomp()` function and then use the
+screeplot() function to visualize the explained variation by eigenvectors. How do I determine how many top components
+explain 95% of the variation?
+
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then first we will do PCA on the expression matrix using `princomp()` function and use `screenplot()` to
+visualize. To calculate how many top components explain 95% of the variation, we will first calculate the cumulative
+variance and find out at which point the cumulative variance is over 95.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Do PCA on the expression matrix and visualize
+pr <- princomp(mat, scale=TRUE)
+screeplot(pr, type = "line")
+
+# How many top components explain 95% of variation? 24
+cumulative_variance <- cumsum(pr$sdev^2) / sum(pr$sdev^2)
+top_components <- sum(cumulative_variance <= 0.95) + 1
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling , numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I want to remove eigenvectors that make up 95% of variation - the top 24 - and reconstruct the matrix using SVD, then
+calculate the reconstruction error as the difference between original and reconstructed matrix.
+
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. We will first use `svd()` to create a svd matrix. Then we will equalize eigenvalue for the top components that
+make up 95% of variation to 0 and then reconstruct the matrix. We can calculate the reconstruction error by getting the
+difference of the original and reconstructed matrix.
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# X = USV^T
+
+# Use SVD
+svd_mat <- svd(mat)
+
+# Equalize eigenvalue to 0 for top components for variation
+svd_mat$d[1:24] <- 0
+
+# reconstruct the matrix
+re_mat <- svd_mat$u %*% diag(svd_mat$d) %*% t(svd_mat$v)
+
+# Calculate the reconstruction error as the difference between original and reconstructed matrix
+reconst_error <- mat - re_mat
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+How do I produce a 10-component ICA(Independent component analysis) from the expression data set? How do I remove each
+component and measure the reconstruction error without that component? I want to rank the components by decreasing
+reconstruction-error.
+
+
+completion:
+The data set must be read first.  We will use `data.table::fread()` function to read in the text file as it can read
+files faster. To do the ICA, we will first load the `library(fastICA)` and perform ICA with 10 components. To measure the
+reconstruction error without the component for the 10-component, we will first initialize a list to store the errors.
+Then we can create a for-loop from 1 to 10 that remove the i-th component and measure reconstruction error each time.
+Using the list of reconstruction errors, we can rank the components by decreasing reconstruction error.
+
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# X = SA
+library(fastICA)
+
+# Perform ICA with 10 components
+ica_res <- fastICA(t(mat), n.comp = 10)
+
+# Initialize a list to store the reconstruction errors
+recon_err <- vector("list", 10)
+
+# Remove each component and measure reconstruction error
+for (i in 1:10) {
+  # Remove the i-th component from the ICA result
+  mod_ica_res <- ica_res
+  mod_ica_res$S[i, ] <- 0  # Setting the i-th component to 0
+  
+  # Reconstruct the data without the i-th component
+  recon_mat <- (mod_ica_res$S) %*% (mod_ica_res$A)
+  
+  # Calculate the reconstruction error
+  recon_err[[i]] <- t(mat) - recon_mat
+}
+
+# Rank the components by decreasing reconstruction error
+sorted_components <- order(sapply(recon_err, function(error) sum(error^2)), decreasing = TRUE)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have this dataset "leukemiaExpressionSubset.txt" which is consisted of gene expression values from 60 bone marrow
+samples of patients with one of the four main types of leukemia (ALL, AML, CLL, CML) or no-leukemia controls.
+I want to use the Rtsne() function on the leukemia expression data set and try to increase and decrease perplexity t-sne,
+and describe the observed changes in 2D plots.
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. We will load the `library("Rtsne")`. We will run TSNE using `Rtsne()` function create a plot and legend to
+visualize. We will do it for 4 different perplexity - 4,8,12,16 - but you can also change the perplexity as you want.
+However, it should remain so that 3 * perplexity < nrow(X) - 1. 
+
+
+```{r,eval=FALSE}
+
+# read leukemia expression data set
+mat <- data.table::fread("leukemiaExpressionSubset.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(mat) <- mat[,1]
+mat <- mat[,-1]
+
+# Load the library
+library("Rtsne")
+
+# Set random number seed, so that the random numbers from the text is the same when you run the code.
+set.seed(42)
+
+# To put 4 graphs into columns and rows of 2.
+par(mfrow=c(2,2))
+
+# Run TSNE
+tsne_out4 <- Rtsne(t(mat),perplexity = 4)
+
+# Show the objects in the 2D tsne representation
+plot(tsne_out4$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 4")
+# create the legend for the Leukemia types
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 8
+tsne_out8 <- Rtsne(t(mat),perplexity = 8)
+plot(tsne_out8$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 8")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 12
+tsne_out12 <- Rtsne(t(mat),perplexity = 12)
+plot(tsne_out12$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 12")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+
+# Repeat for perplexity = 16
+tsne_out16 <- Rtsne(t(mat),perplexity = 16)
+plot(tsne_out16$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19, main="Perplexity 16")
+legend("bottomleft",
+       legend=unique(annotation_col$LeukemiaType),
+       fill =palette("default"),
+       border=NA,box.col=NA)
+```
+--- TASK END

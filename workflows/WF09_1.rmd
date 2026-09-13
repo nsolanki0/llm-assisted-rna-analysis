@@ -1,0 +1,1056 @@
+---
+title: "prompt/completion pairs chapter 9"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I need to know the length of the human chromosome 21 to use for
+further analysis. How do I get this information in R?
+
+completion:
+To obtain the length of the human chromosome 21 for further analysis 
+in R, you can use the BSgenome.Hsapiens.UCSC.hg38 package, which contains the
+reference genome information for human chromosome 21. Here's how you can retrieve the
+chromosome length:
+
+```{r,eval=FALSE}
+require(BSgenome.Hsapiens.UCSC.hg38)
+
+# Access the genome object
+genome_hg38 <- BSgenome.Hsapiens.UCSC.hg38
+
+# Get the length of human chromosome 21
+chromosome21_length <- seqlengths(genome_hg38)["chr21"]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have counts of reads from my ChIP-seq experiment saved in 
+a dataframe called `counts`. This dataframe has 6 columns 
+corresponding to 6 different experiments, and the rows represent
+the different tiling windows I used for these counts. 
+I want to normalize my reads by reads per million per experiment.
+How do I do this?
+
+completion:
+To normalize the read counts by reads per million (RPM) per experiment in R, 
+you first calculate the total number of reads for each experiment. 
+Then, for all columns we divide the read count by the total nr of reads in that experiment
+and multiply by 1000. 
+
+```{r,eval=FALSE}
+
+# normalize by rpm
+rpm <- counts
+
+# total nr of reads per experiment
+col_count <- colSums (counts)
+
+# for all columns
+# divide the read count by the total nr of reads in that experiment
+# and multiply by 1000. 
+for (i in 1:ncol(counts)){
+  rpm[, i] <- (counts[, i]/col_count[i])*1e6
+}
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have counts of reads from my CHiP-seq experiment saved in 
+a dataframe called `counts`. This dataframe has 6 columns 
+corresponding to 6 different experiments, and the rows represent
+the different tiling windows I used for these counts. I want to 
+see if there is any correlation between my experiments,
+and plot the results in a heatmap. How do I do this?
+
+completion:
+To determine the correlation between the experiments based on the 
+read counts and create a heatmap in R, you can make use of the `cor`
+function in R. To then create a heatmap of our results, you can make 
+use of the `pheatmap::pheatmap` function. 
+
+```{r,eval=FALSE}
+require(viridis)
+require(pheatmap)
+
+# calculate pairwise parson correlation
+correlation_matrix <- cor(counts, method='pearson')
+
+# create heatmap
+pheatmap::pheatmap(correlation_matrix, color = viridis(10))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have CHiP-seq data in a variable called `reads`. This is
+a GRanges object. I want to extend the reads that I have with 200 bp 
+for further analysis. I want the extension to happen at the 3'-end 
+of the fragments. How do I do this?
+
+completion:
+To extend the reads in a GRanges object at the 3'-end by 200 base pairs in R, 
+you can use the resize function from the GenomicRanges package.
+The width argument can be used to determine the size of the extension, and 
+the fix argument is set to 'start' so that extension happens at the 3'-end. 
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+
+#calculate width of new size
+new_size <- width(ranges(reads)) + 200
+
+# resize reads
+reads <- GenomicRanges::resize(reads, width=new_size, fix="start")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have CHiP-seq data in a variable called `reads`. This is
+a GRanges object. I want to extend the reads that I have so that 
+my reads are 200 bp in total for further analysis. I want the extension 
+to happen at the 3'-end of the fragments. How do I do this?
+
+completion:
+To extend the reads in a GRanges object at the 3'-end so they are 200
+base pairs in total,you can use the resize function from the GenomicRanges package.
+The width argument can be used to determine the new size of the fragments, and 
+the fix argument is set to 'start' so that extension happens at the 3'-end. 
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+
+# resize reads
+reads <- GenomicRanges::resize(reads, width=200, fix="start")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have CHiP-seq data in a variable called `reads`. This is
+a GRanges object. I want to extend the reads that I have with 200 bp 
+for further analysis. I want the extension to happen at the 5'-end 
+of the fragments. How do I do this?
+
+completion:
+To extend the reads in a GRanges object at the 3'-end by 200 base pairs in R, 
+you can use the resize function from the GenomicRanges package.
+The width argument can be used to determine the size of the extension, and 
+the fix argument is set to 'end' so that extension happens at the 5'-end. 
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+
+new_size <- width(ranges(reads)) + 200
+
+# resize reads
+reads <- GenomicRanges::resize(reads, width=new_size, fix="end")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have CHiP-seq data in a variable called `reads`. This is
+a GRanges object. I want to extend the reads that I have so that 
+my reads are 200 bp in total for further analysis. I want the extension 
+to happen at the 5'-end of the fragments. How do I do this?
+
+completion:
+To extend the reads in a GRanges object at the 3'-end so they are 200
+base pairs in total,you can use the resize function from the GenomicRanges package.
+The width argument can be used to determine the new size of the fragments, and 
+the fix argument is set to 'end' so that extension happens at the 5'-end. 
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+
+# resize reads
+reads <- GenomicRanges::resize(reads, width=200, fix="end")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data in a variable called `reads`. This is
+a GRanges object. I want to extend these reads so that
+in total these are 1000 bp long. I want the extension 
+to happen on both sides equally. How do I do this?
+
+completion:
+To extend the reads in a GRanges object at the 3'-end so they are 1000
+base pairs in total,you can use the resize function from the GenomicRanges package.
+The width argument can be used to determine the new size of the fragments, and 
+the fix argument is set to 'center' so that extension happens at both sides.
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+
+# resize reads
+reads <- GenomicRanges::resize(reads, width=1000, fix="center")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data in a variable called `reads`. This is
+a GRanges object, and contains information of all the reads
+on chromosome 21 of human. I want to visualize peaks in 
+my ChIP-seq data along the human chromosome 21. How do I do this?
+
+completion:
+To visualize peaks in your ChIP-seq data along human chromosome 21 using 
+a GRanges object, you first make sure to only keep the data of `chr21`. 
+You then fetch the length of chromosome 21, and 
+use this as an argument in the `coverage` function, which creates the 
+coverage vector. you can use the Gviz package in R to visualize your results.
+Create a Tracks object to represent your data. You can create one or more tracks for 
+different types of information you want to display. In your case, you might have one track 
+for the peaks. You can also create a GenomeAxis track for further visualization. 
+Then, create a Gviz plot using the created tracks.
+
+```{r,eval=FALSE}
+require(Gviz)
+require(GenomicAlignments)
+require(GenomicRanges)
+require(GenomeInfoDb)
+
+# ensyre only 'chr21' information is there
+reads <- subset(reads,seqnames=="chr21")
+reads <- keepSeqlevels(reads, "chr21", pruning.mode="coarse")
+
+# calculate total length of chr 21
+hg_chrs <- GenomeInfoDb::getChromInfoFromUCSC("hg38")
+hg_chrs <- subset(hg_chrs, grepl("chr21$", chrom))[,"size"]
+names(hg_chrs) <- "chr21"
+
+#calculate coverage vector
+cov <- coverage(reads, width = hg_chrs)
+
+# convert coverage vector to GRanges object and define the signal track
+gcov   <- as(cov, "GRanges")
+dtrack <- Gviz::DataTrack(gcov, name = "CTCF",ylim=c(0,50),col.histogram="steelblue",fill.histogram="black")
+
+# create genomic axis track
+AT <- Gviz::GenomeAxisTrack()
+
+# define the track ordering and plot
+track_list <- c(dtrack,AT)
+Gviz::plotTracks(track_list, 
+    from = min(start(ranges(reads))),
+    to = max(end(ranges(reads))),
+    window="auto",
+    background.title = "black",
+    type="histogram"
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I want to retrieve ENSEMBL information on the genomic annotation
+such as intron, exon, or gene of different locations in the human genome 
+using a GRCh38.92 assembly. I want to retrieve a GRanges object so that
+I can use this for annotation. How do I do this?
+
+completion:
+To retrieve ENSEMBL information on genomic annotation, we can make
+use of the `AnnotationHub` library. Here we look for the following keywords:
+- ENSEMBL to retrieve the ENSEMBL information
+- "Homo" to retrieve the information of homo sapiens
+- "GRCh38.92" to retrieve the correct version
+- and "chr.gtf" to grab the correct file 
+From this we retrieve the correct entry for the annotationhub,
+which we can use to extract the human annotation information. 
+
+```{r,eval=FALSE}
+require(AnnotationHub)
+
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects. One called `reads` and the
+other called `hum_inf`. They contain information about my
+ChIP-seq experiment and info about ENSEMBL annotation 
+of the human genome respectively. The variable `hum_inf` 
+has an extra column called `type`, which holds information
+about if a range is a gene, transcript, exon, intron, etc. 
+I want to see where these 2 GRanges objects overlap, and annotate
+the ranges from my experiment with their respective type. 
+How do I do this?
+
+completion:
+Assuming appropriate seqnames and seqLevels in these 2 GRanges objects,
+we can look for overlaps between these objects using the 
+`findOverlaps` function from the GenomicAlignments library. 
+To annotate the overlaps based on the `type` column in the hum_inf
+object, we extract the names for annotation using the 
+`hum_inf[overlaps$subjectHits]$type` indexing, and create a 
+new column called annotation for the overlaps object. 
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+
+# find overlaps between GRanges objects
+overlaps <- as.data.frame(findOverlaps(reads,hum_inf))
+
+# annotate using the $type column
+overlaps$annotation <- c(hum_inf[overlaps$subjectHits]$type)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called 'overlaps' which holds information
+about overlaps in genomic location between a query and a subject.
+This dataframe has 3 columns, called "queryHits", "subjectHits" and
+"annotation" respectively. I want to count the amount of
+times certain annotations occur in this dataframe, and subsequently calculate
+their relative frequency. How do I do this?
+
+completion:
+To group by a certain column in a dataframe and count the number of times each 
+annotation appears within that group, you can use the dplyr package in R.
+We can use the `group_by` function to group our data by the column `annotation`.
+We can then summarize the data, making a column count which is
+holds the counts of the different annotation types. Finally, to calculate
+the relative frequency we divide each count by the total sum of all counts.
+
+```{r,eval=FALSE}
+require (dplyr)
+
+# we first group the data by annotation
+res <- group_by(.data=overlaps, annotation)
+
+# we then summarize the data making a column count which is
+# holds the counts of the different annotation types. 
+res <- summarize(.data=res, count=length(annotation))
+res$frequency <- round((res$count / sum(res$count)),2)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I want to retrieve ENSEMBL information on the genomic annotation
+such as intron, exon, or gene of the URB1 gene in the human genome 
+using a GRCh38.92 assembly. I want to retrieve a GRanges object so that
+I can use this for annotation. How do I do this?
+
+completion:
+To retrieve ENSEMBL information on genomic annotation, we can make
+use of the `AnnotationHub` library. Here we look for the following keywords:
+- ENSEMBL to retrieve the ENSEMBL information
+- "Homo" to retrieve the information of homo sapiens
+- "GRCh38.92" to retrieve the correct version
+- and "chr.gtf" to grab the correct file 
+From this we retrieve the correct entry for the annotationhub,
+which we can use to extract the human annotation information. 
+We can then subset this information to only hold the GRanges information
+of the "URB1" gene by using the `subset` function. 
+
+```{r,eval=FALSE}
+require (AnnotationHub)
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+#Look for gene_name = "URB1"
+gr_URB1<-subset(hum_inf, gene_name == "URB1")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 GRanges objects called `chip_data` and `control_data`. 
+This is from a ChIP-seq experiment on the human genome. 
+I want to perform peak calling using the first object as the treatment,
+and the second object as the control. How do I do this?
+
+completion:
+To perform peak calling using a treatment (ChIP-seq) GRanges object and a 
+control GRanges object in R, you can use a peak calling tool such as the
+`normr::enrichR`. For this it is important to define the window width for the 
+counting. In the example below we use a binsize of 250. However, you can adjust this based 
+on the specifics of your experiment. After peak calling, we can extract the ranges, q-values 
+and enrichment values using the appropriate `normr` functions. Here is an example of how 
+to do it:
+
+```{r,eval=FALSE}
+require (normr)
+
+# define the window width for the counting
+countConfiguration <- normr::countConfigSingleEnd(binsize = 250)
+
+fit <- normr::enrichR(
+            treatment = chip_data,
+            control   = control_data,
+            genome    = "hg38",
+            countConfig = countConfiguration,
+            verbose   = FALSE)
+
+# extract ranges and annotate with q-values and calculated enrichment
+res <- normr::getRanges(fit)
+res$qvalue <- normr::getQvalues(fit)
+res$enrichment <- normr::getEnrichment(fit)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment 
+on which I did peak calling. The results of this peak calling
+are in the variable `ctcf_fit`. This is a NormRFit-class object.
+From this, I want to extract the ranges, q-values and enrichment scores.
+I then want to extract the reads which have enrichment and a q-value
+of lower then 0.05. I then want to order the result based on q-value. 
+How do I do this?
+
+completion:
+To extract the ranges, q-values, and enrichment scores from a ChIP-seq
+peak calling result stored in a NormRFit-class object, filter the peaks 
+based on q-value and enrichment score, and order the results based on q-value, 
+you can use the `normr` library. This library holds the functions `getRanges`,
+`getQvalues` and `getEnrichment` to extract the wanted information. 
+The resulting GRanges object called ctcf_peaks we can then manipulate
+to retrieve the wanted information, and order based on q-value. 
+
+```{r,eval=FALSE}
+require(normr)
+
+# extract ranges, qvalues and enrichment
+ctcf_peaks <- getRanges(ctcf_fit)
+ctcf_peaks$qvalue <- getQvalues(ctcf_fit)
+ctcf_peaks$enrichment <- getEnrichment(ctcf_fit)
+
+#extract reads with enrichment and qvalue<0.05
+ctcf_peaks <- subset(ctcf_peaks,!is.na(component))
+ctcf_peaks <- subset(ctcf_peaks,qvalue<0.05)
+
+#order based on qvalue
+ctcf_peaks <- ctcf_peaks[order(ctcf_peaks$qvalue), ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment 
+on which I did peak calling. The results of this are stored in 
+a variabe called `ctcf_peaks`. This is a GRanges object. I 
+want to resize the ranges so that the region around the peaks
+is +/- 1kb. How do I do this?
+
+completion:
+To resize a GRanges object, we can make use of the `resize` function
+from the `GenomicRanges` library. To resize the ranges so that the region
+around the found peaks is +/- 1kb, we set the `width` argument to 2000, 
+and the `fix` argument to 'center'.
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+ctcf_peaks <- resize(ctcf_peaks, width = 2000, fix='center')
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment 
+on which I did peak calling. The results of this are stored in 
+a variabe called `ctcf_peaks`. This is a GRanges object. I now
+want to retrieve the sequences which belong to these peak regions
+using a hg38 version of the human genome. How do I do this?
+
+completion:
+To retrieve the sequences that belong to the peak regions in your ChIP-seq 
+data (stored in a GRanges object called ctcf_peaks) using the hg38 version 
+of the human genome, you can use the Bioconductor package GenomicRanges along 
+with the BSgenome package. Here's how you can do it in R:
+
+```{r,eval=FALSE}
+require(GenomicRanges)
+require(BSgenome.Hsapiens.UCSC.hg38)
+
+seq <- getSeq(BSgenome.Hsapiens.UCSC.hg38, ctcf_peaks)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment 
+on which I did peak calling. The results of this are stored in 
+a variabe called `ctcf_peaks`. This is a GRanges object. I want
+to retrieve the sequences of these peaks, using a hg38 version of the 
+human genome.. I then want to perform motif localization for the CTCF motif. 
+How do I do this?
+
+completion:
+To retrieve the sequences of the ChIP-seq peaks (stored in a GRanges 
+object called ctcf_peaks) and perform motif localization for the CTCF 
+motif, we can make use of the `MotifDb` library, which allows us to retreive 
+the CTCF motif. We can retrieve the sequences associated to the peaks using 
+the Bioconductor package GenomicRanges along with the BSgenome package.
+We can then use the `searchSeq` function to scan the sequences associated
+to the peaks for the CTCF motif. 
+
+```{r,eval=FALSE}
+require(BSgenome)
+require(MotifDb)
+require(TFBSTools)
+
+# get position frequency matrix for CTCF motif
+# based on the MotifDB version, the location of the CTCF motif
+# might change, if you do not get the expected results please try
+# to subset with different indices
+pfm_ctcf <- MotifDb::query(MotifDb::query(MotifDb, "Hsapiens"), "CTCF")[[1]]
+
+#convert pfm matrix to PWM object for later analysis
+ctcf_pwm <- TFBSTools::PWMatrix(
+    ID = "CTCF", 
+    profileMatrix = pfm_ctcf
+)
+
+# fetch the sequence of the peaks
+seq <- BSgenome::getSeq(BSgenome.Hsapiens.UCSC.hg38,ctcf_peaks)
+
+# and scan the peaks
+hits <- TFBSTools::searchSeq(ctcf_pwm, seq, min.score = "80%", strand = "*")
+hits <- as.data.frame(hits)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I want to retrieve the binding sequence from the transcription
+factor called CTCF. I want to have the PWM matrix for this
+sequence. How do I do this?
+
+completion:
+To retrieve the Position Weight Matrix (PWM) for the CTCF transcription 
+factor's binding site in R, you can use a motif database or a motif analysis package. 
+One commonly used motif database in R is the MotifDb database. Here's how you can retrieve the 
+PWM for the CTCF motif:
+
+```{r,eval=FALSE}
+require(MotifDb)
+require(TFBSTools)
+
+# Scan the MotifDb database for entries containing
+# Hsapiens and CTCF
+pfm_ctcf <- MotifDb::query(MotifDb::query(MotifDb, 'Hsapiens'), 'CTCF')[[1]]
+
+#convert pfm matrix to PWM object
+ctcf_pwm <- TFBSTools::PWMatrix(
+    ID = "CTCF", 
+    profileMatrix = pfm_ctcf
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats,  numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a DNAStringSet object called `seqs` containing sequences that
+belong to peaks in my ChIP-seq data. I want to scan these
+sequences to see if they contain the motif from 
+transcription factor CTCF. I have the motif from CTCF in a
+variable called `pwm_ctcf`. This is an object of class PWMatrix.
+How do I scan these sequences to see if they contain
+the motif, and make sure I only get hits that have 
+a score of at least 90%?
+
+completion:
+To scan sequences for the presence of a motif from the CTCF transcription 
+factor using a position weight matrix (PWM) and filter for hits with a score 
+of at least 90%, you can use the Bioconductor package TFBSTools. By making
+use of the `searchSeq` function we can search the sequences in variable
+`seqs` for the motif in `ctcf_pwm`. By using the argument min.score we can 
+determine the minimum score percentage. 
+Here's how you can do it:
+
+```{r,eval=FALSE}
+require (TFBSTools)
+
+# scan each sequence and determine the probability of CTCF binding.
+res <- TFBSTools::searchSeq(ctcf_pwm,seqs,min.score="90%")
+
+# convert to dataframe 
+res <- as.data.frame(res)
+
+# print sequence names:
+print(res$seqnames)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling , numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed motif scanning on my DNAStringSet object `seqs`,
+using a variable called `pwm_ctcf`,which is an object of class PWMatrix.
+From this I got the results which I stored in a variable called `res`. This
+is a SiteSetList object. How do I retrieve the sequences 
+that contained the motif, and also print out their percentage scores?
+
+completion:
+To retrieve sequences containing the motif from a SiteSetList object, 
+you can access the sequences by first converting the `res` SiteSetList object
+to a dataframe. After this, we can access which sequences contained the motif
+by accessing the `seqnames` column. This we can use to retrieve the sequences
+which contained the motif from the DNAStringSet object `seqs`, and also
+retrieve the relative scores in percentages. 
+
+```{r,eval=FALSE}
+require(TFBSTools)
+
+# Retrieve sequences containing the motif
+res <- as.data.frame(res)
+seqs_motif_idx <- as.numeric(res$seqnames)
+sequences_motif <- seqs[seqs_motif_idx]
+
+# retrieve scores:
+scores <- res$relScore
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed motif scanning on my DNAStringSet object `seqs`,
+using a variable called `pwm_ctcf`,which is an object of class PWMatrix.
+From this I got the results which I stored in a variable called `res`. This
+is a SiteSetList object. I want to retrieve the subsequence of where the match
+is located. How do I do this?
+
+completion:
+To retrieve subsequences which matched the motif from a SiteSetList object, 
+you can access the sequences by first converting the `res` SiteSetList object
+to a dataframe. This dataframe will contain a column called `seqSites` which
+holds the subsequences of where the match was made. 
+
+```{r,eval=FALSE}
+# Convert SiteSetlist to dataframe
+res <- as.data.frame(res)
+
+# retrieve subsequences of match
+subseqs <- res$siteSeqs
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I performed motif scanning on my DNAStringSet object `seqs`,
+using a variable called `pwm_ctcf`,which is an object of class PWMatrix.
+From this I got the results which I stored in a variable called `res`. This
+is a SiteSetList object. I want to retrieve the start and end positions of where
+the match was found. How do I do this?
+
+completion:
+To retrieve the start and end positions of where
+the match was found you can access the information of 
+the match by first converting the `res` SiteSetList object
+to a dataframe. This dataframe will contain columns called
+`start` and `end` which holds the starting and ending positions
+of the match. 
+
+```{r,eval=FALSE}
+
+# Convert SiteSetlist to dataframe
+res <- as.data.frame(res)
+
+# access the start and end columns:
+starts <- res$start
+ends <- res$end
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a GRanges object called `peaks` which
+holds the information about peaks I found in my ChIP-seq experiment.
+This experiment was done on chromosome 21 of human. I want to perform motif discovery.
+Then I want to plot the newly found motif as a sequence logo. I also 
+want to extract the PWM of this newly found motif.
+How do I do this?
+
+completion:
+To perform motif discovery on your found peaks
+which are contained in the GRanges object called `peaks`,
+you can make use of the rGADEM library. This is an an unsupervised, 
+stochastic motif discovery tools, which uses sampling with subsequent 
+enrichment analysis to find over-represented sequence motifs.
+You can then plot the sequence logo using the `plot` function. 
+To extract the PWM you can make use of the `getPWM` function. 
+
+```{r,eval=fALSE}
+require(BSgenome.Hsapiens.UCSC.hg38)
+require (rGADEM)
+
+# perform motif discovery using 
+# the BSgenome.Hsapiens.UCSC.hg38::Hsapiens genome
+# as reference. 
+novel_motif <- rGADEM::GADEM(peaks, seed=42, nmotifs=1, genome=BSgenome.Hsapiens.UCSC.hg38::Hsapiens)
+
+# plot sequence logo
+plot (novel_motif)
+
+# extract the PWM matrix from the GADEM object
+pwm_motif <- getPWM(novel_motif)[[1]]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment 
+on which I did peak calling. I then scanned the results of my peaks
+to see if the CTCF motif was present in these peaks. The results 
+of this are stored in a variable called `hits`. This is a dataframe with the
+following columns:"seqnames", "source", "feature",  "start", "end", "absScore",
+"relScore", "strand", "ID", "TF", "class" and "siteSeqs". I want to construct a 
+plot, where the X-axis represents where the hit starts, and the y-axis the enrichment 
+at that position.  Since I extended my reads with 1kb +/- on each side,
+I first want to subtract 1000 from the start position and then plot. How do I do this?
+
+completion:
+To construct a plot where the X-axis represents the position where the hit starts 
+(with a subtraction of 1000) and the Y-axis represents the enrichment at that position 
+based on your ChIP-seq data, the `ggplot2` library. Here is how you do it in R:
+
+```{r,eval=FALSE}
+require(ggplot2)
+
+#create new column called position
+hits$position <- hits$start-1000
+
+#plot results
+ggplot(data=hits, aes(position)) +
+    geom_density(size=2) +
+    xlab("Start position") +
+    ylab("Enrichment")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment
+on chromome 21 on which I did peak calling. The results are stored in a variable
+called `CTCF_peaks`. This is a GRanges object. I want to visualize the 
+distribution of peaks in different functional genomic regions, namely
+TSS, exon, intron and intergenic regions. 
+If a read falls partially in a TSS area, I want to annotate it
+as TSS. If it falls in an exonic region, but also partially in
+an intronic or intergenic region, I want to annotate it as exonic.
+If it falls within an intronic region, but also partially in an 
+intergenic region, I want to annotate it as intronic. So the ordering
+is as follows: TSS -> exon -> intron -> intergenic, with TSS having 
+the highest priority and the intergenic regions having the lowest
+priority.I then want to visualize these results in a barplot. 
+How do I do this?
+
+completion:
+To visualize the distribution of ChIP-seq peaks in different functional genomic 
+regions (TSS, exon, intron, and intergenic regions) for chromosome 21 using a GRanges 
+object called `CTCF_peaks`, we make use of the `AnnotationHub` library. 
+Connecting to the annotation hub allows us to retrieve genomic 
+information from the GRCh38.92 genome annotation from ENSEMBL. We 
+retrieve the information of chromosome 21,and use this to annotate 
+our reads using the `GenomicAlignments::findOverlaps` 
+function. With this we check for any overlaps between 
+the GRCh38.92 genome annotation information and the 
+ChIP-seq reads. Any reads for which there is no 
+overlap will be annotated as intergenic. To ensure 
+the correct hierarchy, we order our data based on 
+TSS -> exon -> intron -> intergenic, and subsequently
+remove any reads with multiple annotations keeping 
+only the annotation with the highest priority. The 
+frequency of category is then calculated, and plotted 
+using the `ggplot2:ggplot` function. 
+
+```{r,eval=FALSE}
+require(AnnotationHub)
+require(dplyr)
+require(GenomicAlignments)
+require(ggplot2)
+
+#connect to annotationhub
+ah <- AnnotationHub()
+
+#query annotation hub for human file
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+# fix chromosome names so they fit UCSC naming and keep chr21
+# keep only chromosome 21
+seqlevels(hum_inf, pruning.mode="coarse") <- paste0("chr", seqlevels(hum_inf))
+hum_inf <- hum_inf[seqnames(hum_inf) == "chr21"]
+
+
+# Make annotation list. Any read which does not 
+# produce a hit will be labeled as intergenic
+annotation_list <- GRangesList(
+    # promoters function extends the hum_inf around the TSS
+    # by upstream and downstream amount of 1000bp
+    tss    = promoters(
+      x = subset(hum_inf, type=='gene'),
+      upstream   = 1000, 
+      downstream = 1000), 
+    exon   = subset(hum_inf, type=='exon'),
+    intron = subset(hum_inf, type=='gene')
+)
+
+# find overlaps between ChIP-seq data and ENSEMBL human data
+overlap <- as.data.frame(GenomicAlignments::findOverlaps(ctcf_peaks, annotation_list))
+
+# annotate with names
+overlap$annotation <- names(annotation_list)[overlap$subjectHits]
+
+# order the overlaps based on the hierarchy
+overlap <- overlap[order(overlap$subjectHits), ]
+
+# select only first found category per read
+overlap <- subset(overlap, !duplicated(queryHits))
+
+# find non-overlaps to annotate as intergenic
+non_overlap <- which(!ctcf_peaks %over% annotation_list)
+non_overlap <- data.frame (queryHits = non_overlap, 
+                           subjectHits = rep("NaN",length(non_overlap)),
+                           annotation = rep("intergenic",length(non_overlap)))
+
+res <- rbind(overlap,non_overlap)
+
+# group by annotation:
+res <- dplyr::group_by(.data=res, annotation)
+res <- summarise(.data = res, counts = length(annotation))
+
+# calculate frequency    
+res$frequency  <- with(res, round(counts/sum(counts),2))
+
+ggplot(data=res,
+        aes(x = 1,
+            y = frequency,
+            fill= annotation)) +
+    geom_bar(stat='identity') +
+    labs (x=NULL, y="Frequency") +
+    ggtitle('Peak distribution in\ngenomic regions') +
+    theme_minimal () +
+     theme(axis.text.x = element_blank(),
+        plot.title = element_text(hjust = 0.5))  # Remove x-axis text
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment
+on chromome 21 on which I did peak calling. The results are stored in
+a dataframe called `peaks`, which has the 
+following columns:
+"sequence name","starting position","ending position", "strand information", "component",        
+"qvalue" and  "enrichment". It holds the sequence names, start of the sequence, 
+end of the sequence, the strand information, component information,
+q-values and enrichment values respectively. I want to convert this to a GRange object.
+How do I do this?
+
+completion:
+To convert the information in the dataframe to a GRanges object,
+We need to ensure that the correct naming for the columns are used. 
+Important are the start and end columns, the sequence names,
+and strand information. We will relabel these columns
+with the appropriate names. We then use the `makeGRangesFromDataFrame`
+function to convert our object to a GRanges object. 
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+colnames (peaks)[1]<-"seqnames"
+colnames (peaks)[2]<-"start"
+colnames (peaks)[3]<-"end"
+colnames(peaks)[4] <- "strand"
+
+gr_peaks <- makeGRangesFromDataFrame(peaks, keep.extra.columns = TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have ChIP-seq data from a CTCF transcription factor experiment
+on chromome 21 of the human genome on which I did peak calling. The results are stored in
+a GRanges object called `peaks`, which has an extra column called 'qvalues'
+which contains the q-values of the peaks. I want to do motif discovery.
+I want to select the top 250 peaks based on their q-value, and extract the DNA sequence
+that belongs to these hits. How do I do this?
+
+completion:
+To perform motif discovery on the top 250 peaks based on their q-values from your ChIP-seq experiment,
+you can first sort the GRanges object based on the column `qvalue`. Then we take the first 250 sequences
+in the GRanges object, and use the `getSeq` function from the `BSgenome` library together with the
+human sequence information stored in `BSgenome.Hsapiens.UCSC.hg38` to extract the sequences. 
+
+```{r,eval=FALSE}
+require(BSgenome.Hsapiens.UCSC.hg38)
+
+# order GRanges object based on q-value:
+peaks<-peaks[order(peaks$qvalue)]
+
+# take first 250 sequences:
+peaks<-peaks[1:250]
+
+# Extract the sequences
+seqs <- BSgenome::getSeq(BSgenome.Hsapiens.UCSC.hg38, peaks)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataframe called `my_motif` which holds information of a 
+PWM matrix, and has nucleotides as rowname. I want to convert this to a
+class PWMatrix. How do I do this?
+
+completion:
+To convert a dataframe with PWM (Position Weight Matrix) information to a class 
+PWMatrix in R, you can use the TFBSTools package, which provides tools for working 
+with transcription factor binding sites. Assuming you have a 
+dataframe called my_motif with nucleotides as row names and the PWM values, 
+You can convert this dataframe to a PWMatrix, by making use of the `TFBSTools::PWMatrix`
+function. 
+
+```{r,eval=FALSE}
+require (TFBSTools)
+
+# convert dataframe to matrix
+my_motif <- as.matrix(my_motif)
+
+# create PWM matrix
+unknown_pwm <- TFBSTools::PWMatrix(
+    ID = 'unknown', 
+    profileMatrix = my_motif
+)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a PWM matrix of type class PWMatrix in a variable called 
+`my_motif`. I want to find some of the most similar known transcription factor motifs 
+in human to my motif, and extract their names. How do I do this?
+
+completion:
+To see which transcription factor motifs are most similar to
+your found motif, we can make use of the `JASPAR2018` library. 
+Using the `TFBSTools::getMatrixSet` we extract the PWM matrices
+for various transcription factor binding motifs. With this, we scan for
+similar motifs using the `TFBSTools::PWMSimilarity` function. We
+convert the results into a dataframe, and order based on similarity score.
+We then assign the appropriate names to our results, and print out
+the 5 motifs with the highest similarity score.
+
+```{r,eval=FALSE}
+require(JASPAR2018)
+require(TFBSTools)
+
+# extract motifs corresponding to human transcription factors
+pwm_library <- TFBSTools::getMatrixSet(
+  JASPAR2018,
+  opts=list(
+    collection = "CORE",
+    species    = "Homo sapiens",
+    matrixtype = "PWM"
+  ))
+
+# create dataframe out of library for later annotation
+pwm_library_dt <- data.frame (ID = ID(pwm_library), name= name(pwm_library))
+
+# scan for similar motifs
+pwm_sim <- TFBSTools::PWMSimilarity(pwm_library,
+  my_motif, method = 'Pearson')
+
+# make into dataframe
+pwm_sim <- as.data.frame(pwm_sim)
+
+#order based on similarity score:
+pwm_sim <- pwm_sim [order(pwm_sim$pwm_sim,decreasing=TRUE),,drop=FALSE]
+
+# replace row names with motif name
+rownames(pwm_sim)<-c(pwm_library_dt[match(rownames(pwm_sim), pwm_library_dt$ID),"name"])
+
+# show first 5 hits with best similarity score
+pwm_sim[1:5, , drop=FALSE]
+```
+
+--- TASK END
+

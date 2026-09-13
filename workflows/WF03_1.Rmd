@@ -1,0 +1,410 @@
+---
+title: "prompt/completion pairs chapter 3"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a gene expression values stored in a vector 'x'.
+I want to calculate the mean and median of this vector. How can I accomplish this task?
+
+completion: 
+To calculate the mean and median of the vector 'x', you can use the following code.
+
+```{r,eval=FALSE}
+
+# Calculate mean
+mean(x)
+
+# Calculate median
+median(x)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization , numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset with 20 numerical values, called 'x', which are observations from a set of variables.
+I would like to calculate the variance and standard deviation of this dataset.
+How can I calculate these values?
+I also want to calculate IQR(interquartile range), obtain quantiles, and plot the boxplot.
+
+completion:
+First, you can use `var()` and `sd()` to calculate the variance and standard deviation of the vector.
+You can also calculate IQR by `IQR()` function.
+To obtain quantiles of 0,25,50,75,100%, use `quantile()`, and plot the boxplot using `boxplot()`.
+
+```{r,eval=FALSE}
+
+# variance of the dataset
+var(x)
+# standard deviation of the dataset
+sd(x)
+# Calculate interquartile range (IQR)
+IQR(x)
+# Obtain quantiles
+quantile(x)
+# Create a box plot
+boxplot(x, horizontal = T)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset with continuous numerical values, called 'data'.
+I already calculated the mean and standard deviation of the 'data', which is 0 and 2, respectively.
+I want to perform various calculations using a normal distribution with `mean=0` and `sd=2`.
+Specifically, I would like to calculate the probability density function at `x=-2`.
+I also want to find probabilities for `P(X =< -2)` and `P(X > -2)`.
+Lastly, I want to determine the y value that corresponds to `P(X > y) = 0.15`.
+How can I perform these calculations?
+
+completion:
+In R, there is a family of `*norm` functions `rnorm`,`dnorm`,`qnorm` and `pnorm`.
+These can be used to operate with the normal distribution.
+First the function `dnorm()` will be used to calculate the probablity density function.
+Then the `pnorm()` function can calculate probability of `P(X =< -2)`. 
+The probablity of `P(X > -2)` can be calculated by setting the `lower.tail = FALSE`.
+The y value corresponding to `P(X > y) = 0.15` can be calculated using `qnorm()` function.
+
+```{r,eval=FALSE}
+
+# get the value of probability density function when X= -2, where mean=0 and sd=2
+dnorm(-2, mean=0, sd=2)
+
+# get the probability of P(X =< -2) where mean=0 and sd=2
+pnorm(-2, mean=0, sd=2)
+
+# get the probability of P(X > -2) where mean=0 and sd=2
+pnorm(-2, mean=0, sd=2,lower.tail = FALSE)
+
+# get y value corresponding to P(X > y) = 0.15 with  mean=0 and sd=2
+qnorm(0.15, mean=0 , sd=2)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I took 50 samples randomly from a population, which is called 'sample1'.
+Since I do not have access to the population, I would like to build confidence intervals using bootstrap resampling
+to estimate the precision of population parameter. How do I do bootstrap resampling with 1000 resamples?
+How can I visualize the distribution of sample means using histogram and show 95% confidence interval?
+Additionally, I would like to use the central limit theorem (CLT) to calculate 95% confidence interval and compare
+it to the confidence interval calculated with bootstrap. How can I do that?
+
+completion:
+We will do bootstrap resampling for the 'sample1' to create 1000 resamples by randomly selecting values with
+replacement from the initial sample. These resamples will allow us to construct a distribution of sample means.
+Visualizations will play a crucial role in depicting this distribution; a histogram will provide a clear view,
+and confidence intervals will be visually represented by red vertical lines at the 2.5th and 97.5th percentiles.
+Additionally, the Central Limit Theorem will be used to calculate a confidence interval for the mean of the
+original dataset. This interval's validity will be compared against the bootstrap-based interval.
+
+```{r,eval=FALSE}
+library(mosaic)
+
+# do bootstrap resampling, sampling with replacement
+boot.means <- do(1000) * mean(resample(sample1))
+
+# get percentiles from the bootstrap means
+q <- quantile(boot.means[,1],p=c(0.025,0.975))
+
+# plot the histogram
+hist(boot.means[,1],col="cornflowerblue",border="white",
+                    xlab="sample means")
+abline(v=c(q[1], q[2] ),col="red")
+text(x=q[1],y=200,round(q[1],3),adj=c(1,0))
+text(x=q[2],y=200,round(q[2],3),adj=c(0,0))
+
+# Calculating confidence intervals using CLT (Central Limit Theorem)
+alpha <- 0.05
+sd <- 5
+n <- 50
+mean(sample1)+qnorm(c(alpha/2,1-alpha/2))*sd/sqrt(n)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 vectors called `gene1` and `gene2`.
+Each vector has 30 numeric values, which represent gene expression values obtained under different conditions.
+How can I test the difference of means of the `gene1` and `gene2` using the randomization?
+How can I plot the distribution using histogram?
+I also want to do a Welch's t-test and t-test with equal variance assumption. How can I do that?
+
+completion:
+We will do the randomization with the following process.
+First, we will calculate the differences in the means and do the randomization procedure to get a null distribution
+when we assume there is no difference between samples, H0. We then calculate how often we would get the original
+difference we calculated under the assumption that H0 is true.
+Then, we will plot the null distribution for differences of means obtained via randomization using histograms.
+The original difference will be marked via the blue line, and the value that corresponds to P-value of 0.05 will be
+marked via the red line.
+Then we can do the Welch's t-test by simply using `stats::t.test()` and t-test with equal variance assumption by
+indicating `var.equal = TRUE` in the `t.test()`.
+
+```{r,eval=FALSE}
+
+# Randomization-based testing
+
+# Calculate the original differences in the means
+org.diff <- mean(gene1)-mean(gene2)
+
+# Make gene1 and gene2 into one data frame, with gene1 marked as test and gene2 marked as control group.
+gene.df <- data.frame(exp=c(gene1,gene2),
+                  group=c( rep("test",30),rep("control",30) ) )
+
+# Do the randomization process to get a null distribution when we assume there is no difference between samples (H0).
+exp.null <- do(1000) * diff(mosaic::mean(exp ~ shuffle(group), data=gene.df))
+
+# Plot the histogram with the null distribution
+hist(exp.null[,1],xlab="null distribution | no difference in samples",
+     main=expression(paste(H[0]," :no difference in means") ),
+     xlim=c(-2,2),col="cornflowerblue",border="white")
+
+# Draw a line at the 95th percentile of null distribution.
+abline(v=quantile(exp.null[,1],0.95),col="red" )
+abline(v=org.diff,col="blue" )
+
+# Draw a line at the point of original difference of the means
+text(x=quantile(exp.null[,1],0.95),y=200,"0.05",adj=c(1,0),col="red")
+text(x=org.diff,y=200,"org. diff.",adj=c(1,0),col="blue")
+
+# Calculation of p-value
+p.val <- sum(exp.null[,1]>org.diff)/length(exp.null[,1])
+p.val
+
+# Welch's t-test
+stats::t.test(gene1,gene2)
+
+# t-test with equal variance assumption
+stats::t.test(gene1,gene2,var.equal=TRUE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data from the cancer gene expression study comparing two mutation types of genes, called 'hedenfalk'.
+I would like to perform a multiple test correction on the p-values of this data. How can I do that?
+How can I perform a Bonferroni correction, FDR, and q-value approach?
+I would like to make a plot to compare the three methods. How can I do that?
+
+completion:
+The `qvalue` package from Bioconductor will be used.
+In the data set, p-value will be specified with `hedenfalk$p`, since we will only use the p-value for our task.
+First the three methods will be implemented. The q-value method will be implemented by `qvalue()` function,
+the Bonferroni correction will be implemented by `p.adjust()` with `method = "bonferroni"` and the FDR approach
+will be implemented by `p.adjust()` with `method = "fdr"`.
+Lastly, the p-values adjusted by the three methods will be plotted to show the difference.
+
+```{r,eval=FALSE}
+
+# For q-value adjustment, we need library 'qvalue'
+library(qvalue)
+
+# q-value adjustment method
+qvalues <- qvalue(hedenfalk$p)$q
+
+# Bonferroni adjustment method
+bonf.pval <- p.adjust(hedenfalk$p,method ="bonferroni")
+
+# FDR-adjustment method
+fdr.adj.pval <- p.adjust(hedenfalk$p,method ="fdr")
+
+# Plot the adjusted p-values. First plot p-values adjusted with q-value adjustment.
+plot(hedenfalk$p,qvalues,pch=19,ylim=c(0,1),
+     xlab="raw P-values",ylab="adjusted P-values")
+
+# Then add points for FDR and Bonferroni, distinguished with colors.
+points(hedenfalk$p,bonf.pval,pch=19,col="red")
+points(hedenfalk$p,fdr.adj.pval,pch=19,col="blue")
+
+# Write the legend for the three adjustments.
+legend("bottomright",legend=c("q-value","FDR (BH)","Bonferroni"),
+       fill=c("black","blue","red"))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a gene expression data frame that has 6 columns, called 'data'. The first 3 columns are the test samples,
+and the last 3 are the control samples. Each row is a gene, and there are 500 rows total. I would like to calculate
+moderated and unmoderated t-test statistics and plot the p-value distributions for tests using histograms.
+How can I complete these tasks? Also, how can I calculate the number of significant tests with 0.05 threshold?
+
+completion:
+Assuming 'data' data frame has numerical values for gene expression, we will calculate moderated and unmoderated
+t-test statistics. We will first estimate t-statistic without moderation by calculating the difference in the means
+(calculated row by row) and the standard error for the difference in means of two groups. We will also calculate
+the p-value of rejecting null.
+Then we will estimate t-statistic with moderation. That can be done by using same method for t-statistic without
+moderation - we just have to modify the standard error by shrinking it towards median.
+Lastly we will then make 2 histograms, one for unmoderated p and one for moderated p.
+The number of significant tests with the 0.05 threshold will be calculated and written on the histograms.
+
+```{r,eval=FALSE}
+
+# set test/control groups
+group1 <- 1:3
+group2 <- 4:6
+
+# Set n1 and n2, which is the number of the test / control samples.
+n1 <- 3
+n2 <- 3
+
+# Calculate the mean of each row (test group and control group) and take the difference
+dx <- rowMeans(data[,group1])-rowMeans(data[,group2])
+
+# load package 'matrixStats'
+require(matrixStats)
+
+# get the esimate of pooled variance 
+stderr <- sqrt( (rowVars(data[,group1])*(n1-1) + 
+       rowVars(data[,group2])*(n2-1)) / (n1+n2-2) * ( 1/n1 + 1/n2 ))
+
+# do the shrinking towards median
+mod.stderr <- (stderr + median(stderr)) / 2 # moderation in variation
+
+# esimate t statistic with moderated variance
+t.mod <- dx / mod.stderr
+
+# calculate P-value of rejecting null 
+p.mod <- 2*pt( -abs(t.mod), n1+n2-2 )
+
+# esimate t statistic without moderated variance
+t <- dx / stderr
+
+# calculate P-value of rejecting null 
+p <- 2*pt( -abs(t), n1+n2-2 )
+
+# This command to present 2 histograms horizontally
+par(mfrow=c(1,2))
+
+# First make a histogram for unmoderated p values.
+# You can change the settings such as colors, title, x-label, etc.
+hist(p,col="cornflowerblue",border="white",main="",xlab="P-values t-test")
+
+# Write the number of the significant tests with the 0.05 threshold
+mtext(paste("signifcant tests:",sum(p<0.05))  )
+
+# Do the same for the moderated p values.
+hist(p.mod,col="cornflowerblue",border="white",main="",
+     xlab="P-values mod. t-test")
+mtext(paste("signifcant tests:",sum(p.mod<0.05))  )
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 50 numerical values in a vector called 'x', which represents the histone modification score and is between 1 and 100. 
+I also have a vector 'y' which has 50 numerical values and represent gene expression values.
+How can I fit a line to predict Y based on X? I also want to plot the scatter plot and the fitted line.
+Using the summary function I would like to test the coefficients for the null hypothesis.
+I also want to get the confidence intervals and pull out the estimated coefficients from the model.
+How can I accomplish these tasks?
+
+completion:
+To fit a line to predict y, we can simply use `lm()` function. To create a scatterplot and add the fitted line, we 
+can first use `plot()` which plots the points, and add `abline()` which draws a line of a given linear model.
+We can use `summary()` function on the model we created by `lm()` and it will show the results of tested
+coefficients along with other information. Lastly, we can use the `confint()` function to get the confidence
+intervals on the coefficients and the `coef()` function to pull out the estimated coefficients from the model.
+
+```{r,eval=FALSE}
+
+# Use lm function to fit a line
+mod1 <- lm(y~x)
+
+# plot the data points
+plot(x,y,pch=20,
+     ylab="Gene Expression",xlab="Histone modification score")
+# plot the linear fit
+abline(mod1,col="blue")
+
+# summary function to test all the coefficients for the null hypothesis βi=0.
+summary(mod1)
+
+# Get confidence intervals on the coefficients
+confint(mod1)
+
+# Pull out the estimated coefficients from the model
+coef(mod1)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats \| visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 vectors called `gene1` and `gene2`. Each vector has 30 numeric values, which represent gene expression
+values obtained under different conditions. I would like to encode the two differential gene expression as
+categorical variables in 0 and 1. How can I make a linear regression model with the data so that the two groups
+are encoded in 0 and 1? What are the estimated coefficients? How can I plot the model?
+I would also like to try comparing three levels with 'A','B','C' and see how the estimated coefficients look like.
+
+completion:
+In differential gene expression, we usually test the difference between different conditions, which can be encoded
+as categorical variables in a linear regression. We will first make the model with categorical variables including
+two levels that will be encoded in 0 and 1. Then, we will run the `summary()` function.
+To visualize the model, we will simply load the library `mosaic()` and use `plotModel()` function to plot.
+Lastly, we can try making model with categorical variables including three levels.
+However, since there are only two groups (gene1 and gene2), we will make gene1 as 'A', gene2 as 'B' and 'C'.
+We will then run the `summary()` function.
+Since groupB and C had same data set of `gene2`, we can see that the coefficients for the two group are identical.
+
+```{r,eval=FALSE}
+
+# Make gene1 and gene2 into one data frame, with gene1 encoded as 1 and gene2 encoded as 0.
+gene.df <- data.frame(exp=c(gene1,gene2),
+                  group=c( rep(1,30),rep(0,30) ) )
+
+# Linear regression model with gene.df data, which shows the relationship between exp and group
+mod2 <- lm(exp~group,data=gene.df)
+# Run the summary function
+summary(mod2)
+
+# Using mosaic library, plot the model
+require(mosaic)
+plotModel(mod2)
+
+# Data table for three categorial variables
+gene.df <- data.frame(exp=c(gene1,gene2,gene2),
+                  group=c( rep("A",30),rep("B",30),rep("C",30) ) 
+                  )
+# linear regression model with three categorial variables
+mod3 <- lm(exp~group,data=gene.df)
+# Run the summary function
+summary(mod3)
+
+```
+
+--- TASK END

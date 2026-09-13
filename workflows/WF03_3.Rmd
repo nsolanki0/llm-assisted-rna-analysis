@@ -1,0 +1,408 @@
+---
+title: "prompt/completion pairs chapter 3"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a gene expression data set named "geneExpMat.txt". The data has 100 differentially expressed genes.
+The first 3 columns are the test samples, and the last 3 are the control samples.
+How can I do a t-test for each gene (each row is a gene), and record the p-values?
+Also, how can I do a moderated t-test and record the p-values?
+Using the p-values, I want to make a p-value histogram and compare two approaches in terms of the number of
+significant tests with the 0.05 threshold. I also want to use FDR (BH), Bonferroni and q-value adjustment methods
+on the unmoderated p-values and plot them to compare.
+Calculate how many adjusted p-values are below 0.05 for each approach.
+
+Completion:
+The table must be read in first.
+We can use `data.table::fread()` function for this purpose as it can read files faster.
+Since the test and control samples are divided by the column number, we can compare the column 1-3 and column 4-6.
+We will first estimate t-statistic without moderation by calculating the difference in the means
+(calculated row by row) and the standard error for the difference in means of two groups.
+We will also calculate the p-value of rejecting null.
+Then we will estimate t-statistic with moderation. That can be done by using same method for t-statistic without
+moderation - we just have to modify the standard error by shrinking it towards median.
+We will then make 2 histograms, one for unmoderated p and one for moderated p.
+The number of significant tests with the 0.05 threshold will be calculated and written on the histograms.
+Then we will use FDR (BH), Bonferroni and q-value adjustment methods on the p-values and calculate how many
+adjusted p-values are below 0.05 for each.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+# read gene expression data set
+geneExpMat <- data.table::fread("geneExpMat.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Later the `rowVars` function requires matrix, so change the data frame into matrix.
+geneExpMat <- as.matrix(geneExpMat)
+
+# load package 'matrixStats'
+library(matrixStats)
+
+# Set n1 and n2, which is the number of the test / control samples.
+n1 <- 3
+n2 <- 3
+
+# Calculate the mean of each row (test group and control group) and take the difference
+dx <- rowMeans(geneExpMat[,1:3]) - rowMeans(geneExpMat[,4:6])
+
+# Get the estimate of pooled variance
+stderr <- sqrt(((n1-1)*rowVars(geneExpMat[,1:3])+(n2-1)*rowVars(geneExpMat[,4:6])) / (n1+n2-2)*(1/n1 + 1/n2) )
+
+# Estimate t-statistic without moderated variance
+t <- dx / stderr
+
+# Calculate P-value of rejecting null
+p <- 2*pt (-abs(t), n1+n2-2)
+
+# Do the shrinking towards median for moderation in variance
+mod.stderr <- (stderr + median(stderr)) / 2
+
+# Estimate t-statistic with moderated variance and calculate P-value of rejecting null 
+t.mod <- dx / mod.stderr
+p.mod <- 2*pt (-abs(t.mod), n1+n2-2)
+
+# This command to present 2 histograms horizontally
+par(mfrow=c(1,2))
+
+# First make a histogram for unmoderated p values.
+# You can change the settings such as colors, title, x-label, etc.
+hist(p,col="cornflowerblue",border="white",main="",xlab="P-values t-test")
+
+# Write the number of the significant tests with the 0.05 threshold
+mtext(paste("signifcant tests:",sum(p<0.05))  )
+
+# Do the same for the moderated p values.
+hist(p.mod,col="cornflowerblue",border="white",main="",
+     xlab="P-values mod. t-test")
+mtext(paste("signifcant tests:",sum(p.mod<0.05))  )
+
+# Use FDR (BH), Bonferroni and q-value adjustment methods on the p-values
+
+# For q-value adjustment, we need library 'qvalue'
+library(qvalue)
+
+# q-value adjustment method
+qvalues <- qvalue(p)$qvalues
+
+# FDR-adjustment method
+fdr.p <- p.adjust(p, method = "fdr")
+
+# Bonferroni adjustment method
+bonf.p <- p.adjust(p, method = "bonferroni")
+
+# Plot the adjusted p-values. First plot p-values adjusted with q-value adjustment.
+plot(p,qvalues,pch=19,ylim=c(0,1),xlab="raw P-values",ylab="adjusted P-value")
+
+# Then add points for FDR and Bonferroni, distinguished with colors.
+points(p,bonf.p,pch=19,col="red")
+points(p,fdr.p,pch=19,col="blue")
+
+# Write the legend for the three adjustments.
+legend("bottomright",legend=c("q-value","FDR (BH)","Bonferroni"), fill=c("black","blue","red"))
+
+# Calculate how many adjusted p-values are below 0.05 for each approach
+sum(qvalues<0.05)
+sum(fdr.p<0.05)
+sum(bonf.p<0.05)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization , numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a gene expression data set.
+The file name is "geneExpMat.txt". The data has 100 differentially expressed genes.
+The first 3 columns are the test samples, and the last 3 are the control samples.
+How can I do a t-test for each gene (each row is a gene), and record the p-values?
+I also want to use FDR (BH), Bonferroni and q-value adjustment methods on the p-values and plot them to compare.
+Calculate how many adjusted p-values are below 0.05 for each approach.
+
+completion:
+The tables must be read in first. We can use `data.table::fread()` function for this purpose as it can read files faster. 
+Since the test and control samples are divided by the column number, we can compare the column 1-3 and column 4-6.
+We will first estimate t-statistic without moderation by calculating the difference in the means
+(calculated row by row) and the standard error for the difference in means of two groups.
+We will also calculate the p-value of rejecting null.
+Then we will use FDR (BH), Bonferroni and q-value adjustment methods on the p-values and calculate how many
+adjusted p-values are below 0.05 for each.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+# read gene expression data set
+geneExpMat <- data.table::fread("geneExpMat.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Later the `rowVars` function requires matrix, so change the data frame into matrix.
+geneExpMat <- as.matrix(geneExpMat)
+
+# load package 'matrixStats'
+library(matrixStats)
+
+# Set n1 and n2, which is the number of the test / control samples.
+n1 <- 3
+n2 <- 3
+
+# Calculate the mean of each row (test group and control group) and take the difference
+dx <- rowMeans(geneExpMat[,1:3]) - rowMeans(geneExpMat[,4:6])
+
+# Get the estimate of pooled variance
+stderr <- sqrt(((n1-1)*rowVars(geneExpMat[,1:3])+(n2-1)*rowVars(geneExpMat[,4:6])) / (n1+n2-2)*(1/n1 + 1/n2) )
+
+# Estimate t-statistic without moderated variance
+t <- dx / stderr
+
+# Calculate P-value of rejecting null
+p <- 2*pt (-abs(t), n1+n2-2)
+
+# Use FDR (BH), Bonferroni and q-value adjustment methods on the p-values
+
+# For q-value adjustment, we need library 'qvalue'
+library(qvalue)
+
+# q-value adjustment method
+qvalues <- qvalue(p)$qvalues
+
+# FDR-adjustment method
+fdr.p <- p.adjust(p, method = "fdr")
+
+# Bonferroni adjustment method
+bonf.p <- p.adjust(p, method = "bonferroni")
+
+# Plot the adjusted p-values. First plot p-values adjusted with q-value adjustment.
+plot(p,qvalues,pch=19,ylim=c(0,1),xlab="raw P-values",ylab="adjusted P-value")
+
+# Then add points for FDR and Bonferroni, distinguished with colors.
+points(p,bonf.p,pch=19,col="red")
+points(p,fdr.p,pch=19,col="blue")
+
+# Write the legend for the three adjustments.
+legend("bottomright",legend=c("q-value","FDR (BH)","Bonferroni"), fill=c("black","blue","red"))
+
+# Calculate how many adjusted p-values are below 0.05 for each approach
+sum(qvalues<0.05)
+sum(fdr.p<0.05)
+sum(bonf.p<0.05)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a gene expression data set. The file name is "geneExpMat.txt". The data has 100 differentially expressed genes.
+The first 3 columns are the test samples, and the last 3 are the control samples.
+How can I do a t-test for each gene (each row is a gene), and record the p-values?
+Also, how can I do a moderated t-test and record the p-values?
+Using the p-values, I want to make a p-value histogram and compare two approaches in terms of the number of
+significant tests with the 0.05 threshold.
+
+completion:
+The tables must be read in first. We can use `data.table::fread()` function for this purpose as it can read files faster. 
+Since the test and control samples are divided by the column number, we can compare the column 1-3 and column 4-6.
+We will first estimate t-statistic without moderation by calculating the difference in the means (calculated row by row)
+and the standard error for the difference in means of two groups. We will also calculate the p-value of rejecting null.
+Then we will estimate t-statistic with moderation. That can be done by using same method for t-statistic without 
+moderation - we just have to modify the standard error by shrinking it towards median.
+We will then make 2 histograms, one for unmoderated p and one for moderated p.
+The number of significant tests with the 0.05 threshold will be calculated and written on the histograms.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+# read gene expression data set
+geneExpMat <- data.table::fread("geneExpMat.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Later the `rowVars` function requires matrix, so change the data frame into matrix.
+geneExpMat <- as.matrix(geneExpMat)
+
+# load package 'matrixStats'
+library(matrixStats)
+
+# Set n1 and n2, which is the number of the test / control samples.
+n1 <- 3
+n2 <- 3
+
+# Calculate the mean of each row (test group and control group) and take the difference
+dx <- rowMeans(geneExpMat[,1:3]) - rowMeans(geneExpMat[,4:6])
+
+# Get the estimate of pooled variance
+stderr <- sqrt(((n1-1)*rowVars(geneExpMat[,1:3])+(n2-1)*rowVars(geneExpMat[,4:6])) / (n1+n2-2)*(1/n1 + 1/n2) )
+
+# Estimate t-statistic without moderated variance
+t <- dx / stderr
+
+# Calculate P-value of rejecting null
+p <- 2*pt (-abs(t), n1+n2-2)
+
+# Do the shrinking towards median for moderation in variance
+mod.stderr <- (stderr + median(stderr)) / 2
+
+# Estimate t-statistic with moderated variance and calculate P-value of rejecting null 
+t.mod <- dx / mod.stderr
+p.mod <- 2*pt (-abs(t.mod), n1+n2-2)
+
+# This command to present 2 histograms horizontally
+par(mfrow=c(1,2))
+
+# First make a histogram for unmoderated p values.
+# You can change the settings such as colors, title, x-label, etc.
+hist(p,col="cornflowerblue",border="white",main="",xlab="P-values t-test")
+
+# Write the number of the significant tests with the 0.05 threshold
+mtext(paste("signifcant tests:",sum(p<0.05))  )
+
+# Do the same for the moderated p values.
+hist(p.mod,col="cornflowerblue",border="white",main="",
+     xlab="P-values mod. t-test")
+mtext(paste("signifcant tests:",sum(p.mod<0.05))  )
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a histone modification data set. The file name is "HistoneModeVSgeneExp.txt".
+There are 3 columns in the dataset. These are measured levels of H3K4me3, H3K27me3 and gene expression per gene 
+(named 'measured_log2'). How can I plot the scatterplot for H3K4me3 vs.expression?
+How can I fit the model for prediction of expression data using 1) only H3K4me3 as explanatory variable
+2) only H3K27me3 as explanatory variable 3) both H3K4me3 and H3K27me3 as explanatory variable? 
+How would I know which terms are significant?
+How can I plot H3k4me3 vs. H3k27me3 and inspect the points that do not follow a linear trend? 
+
+completion:
+The tables must be read in first.
+We can use `data.table::fread()` function for this purpose as it can read files faster.
+Then we can plot H3K27me3 vs.expression using `plot()`.
+Then we can create linear models for each cases with `lm()` (using H3k4me3, H3k27me3, H3k4me3+H3k27me3). 
+After that we can inspect the significance of three models using `summary()` function.
+To inspect the points that do not follow a linear trend, we can use the `smoothScatter()` function, which produces
+a smoothed color density representation of a scatterplot.
+
+```{r,eval=FALSE}  
+library(data.table)
+
+# read methylation age data
+hmodFile <- data.table::fread("HistoneModeVSgeneExp.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Plot H3K27me3 vs.expression
+plot(hmodFile$H3k4me3,hmodFile$measured_log2)
+
+# Create three linear models for each case.
+mod1<-lm(measured_log2~H3k4me3,data=hmodFile)
+mod2<-lm(measured_log2~H3k27me3,data=hmodFile)
+mod3<-lm(measured_log2~H3k4me3+H3k27me3,data=hmodFile)
+
+# Use summary function for each model
+summary(mod1)
+summary(mod2)
+summary(mod3)
+
+# smoothScatter function
+smoothScatter(hmodFile$H3k27me3,hmodFile$H3k4me3)
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a histone modification data set. The file name is "HistoneModeVSgeneExp.txt". There are 3 columns in the dataset.
+These are measured levels of H3K4me3, H3K27me3 and gene expression per gene(named 'measured_log2').
+How can I plot the scatterplot for H3K4me3 vs.expression?
+
+completion:
+The tables must be read in first. We can use `data.table::fread()` function for this purpose as it can read files faster.
+Then we can plot H3K27me3 vs.expression using `plot()`.
+
+```{r,eval=FALSE}  
+library(data.table)
+
+# read methylation age data
+hmodFile <- data.table::fread("HistoneModeVSgeneExp.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Plot H3K27me3 vs.expression
+plot(hmodFile$H3k4me3,hmodFile$measured_log2)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats , numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a histone modification data set. The file name is "HistoneModeVSgeneExp.txt". There are 3 columns in the dataset.
+These are measured levels of H3K4me3, H3K27me3 and gene expression per gene(named 'measured_log2'). 
+How can I fit the model for prediction of expression data using 1) only H3K4me3 as explanatory variable 2) only H3K27me3
+as explanatory variable 3) both H3K4me3 and H3K27me3 as explanatory variable? How would I know which terms are
+significant?
+
+completion:
+The tables must be read in first. We can use `data.table::fread()` function for this purpose as it can read files faster.
+Then we can plot H3K27me3 vs.expression using `plot()`.
+Then we can create linear models for each cases with `lm()` (using H3k4me3, H3k27me3, H3k4me3+H3k27me3).
+After that we can inspect the significance of three models using `summary()` function.
+To inspect the points that do not follow a linear trend, we can use the `smoothScatter()` function, which produces a
+smoothed color density representation of a scatterplot.
+
+```{r,eval=FALSE}  
+library(data.table)
+
+# read methylation age data
+hmodFile <- data.table::fread("HistoneModeVSgeneExp.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# Create three linear models for each case.
+mod1<-lm(measured_log2~H3k4me3,data=hmodFile)
+mod2<-lm(measured_log2~H3k27me3,data=hmodFile)
+mod3<-lm(measured_log2~H3k4me3+H3k27me3,data=hmodFile)
+
+# Use summary function for each model
+summary(mod1)
+summary(mod2)
+summary(mod3)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a histone modification data set. The file name is "HistoneModeVSgeneExp.txt". There are 3 columns in the dataset.
+These are measured levels of H3K4me3, H3K27me3 and gene expression per gene(named 'measured_log2'). 
+How can I plot H3k4me3 vs. H3k27me3 and inspect the points that do not follow a linear trend? 
+
+completion:
+The tables must be read in first.
+We can use `data.table::fread()` function for this purpose as it can read files faster.
+To inspect the points that do not follow a linear trend, we can use the `smoothScatter()` function, which produces
+a smoothed color density representation of a scatterplot.
+
+```{r,eval=FALSE}  
+library(data.table)
+
+# read methylation age data
+hmodFile <- data.table::fread("HistoneModeVSgeneExp.txt", header = TRUE, 
+                              data.table=FALSE)
+
+# smoothScatter function
+smoothScatter(hmodFile$H3k27me3,hmodFile$H3k4me3)
+```
+--- TASK END

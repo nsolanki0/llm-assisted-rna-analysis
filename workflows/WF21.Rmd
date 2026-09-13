@@ -1,0 +1,924 @@
+---
+title: "prompt/completion pairs single-cell_basic_chapter 1"
+author: "authors"
+date: "2023-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells based on their 
+expression profiles.
+How do I do this?
+
+completion:
+To calculate quality control metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and calculate
+the quality control metrics on them. The created quality control metrics
+data frame contains a number of columns. The sum column contains 
+the total count for each cell and the detected column contains the number of 
+detected genes. The subsets_Mito_percent column contains the percentage of 
+reads mapped to mitochondrial transcripts. Finally, the altexps_ERCC_percent 
+column contains the percentage of reads mapped to ERCC transcripts.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells based on their 
+expression profiles and add them to the colData slot of my SingleCellExperiment 
+object.
+How do I do this?
+
+completion:
+To calculate quality control metrics for each cell and append them to the 
+colData slot of our SingleCellExperiment object, we can use the
+addPerCellQCMetrics() function from scuttle package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the quality control metrics on them and append the calculated
+metrics at the same time using addPerCellQCMetrics() function. The sum column 
+contains the total count for each cell and the detected column contains the 
+number of detected genes. The subsets_Mito_percent column contains the 
+percentage of reads mapped to mitochondrial transcripts. Finally, the 
+altexps_ERCC_percent column contains the percentage of reads mapped to ERCC 
+transcripts.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+sce.416b <- addPerCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# inspect column names to confirm new column addition
+colnames(colData(sce.416b))
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells based on fixed 
+thresholds. The thresholds for low-quality cells being library sizes below 
+100,000 reads; express fewer than 5,000 genes; have spike-in proportions above 
+10%; or have mitochondrial proportions above 10%.
+How do I do this?
+
+completion:
+To calculate quality control metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the quality control metrics on them. The created quality control 
+metrics data frame contains a number of columns. The sum column contains 
+the total count for each cell and the detected column contains the number of 
+detected genes. The subsets_Mito_percent column contains the percentage of 
+reads mapped to mitochondrial transcripts. Finally, the altexps_ERCC_percent 
+column contains the percentage of reads mapped to ERCC transcripts. By applying
+thresholds on the respective data columns of the quality control metrics data
+frame we can identify the low-quality cells.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# library size threshold
+qc.lib <- df$sum < 1e5
+
+# number of expressed genes threshold
+qc.nexprs <- df$detected < 5e3
+
+# spike-in proportions threshold
+qc.spike <- df$altexps_ERCC_percent > 10
+
+# mitochondrial proportions threshold
+qc.mito <- df$subsets_Mito_percent > 10
+
+# remove the cells based on the threshold
+discard <- qc.lib | qc.nexprs | qc.spike | qc.mito
+
+# summarize the number of cells removed for each reason
+DataFrame(LibSize=sum(qc.lib), NExprs=sum(qc.nexprs),
+    SpikeProp=sum(qc.spike), MitoProp=sum(qc.mito), Total=sum(discard))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells assuming that 
+most of my dataset consists of high-quality cells. 
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scater package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# identifying outliers for QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# low-quality cells based on various QC metrics
+colSums(as.matrix(reasons))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells assuming that 
+most of my dataset consists of high-quality cells. And at the end I would like
+to get the number of cells that are not and are of low-quality respectively.
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scater package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality and discarded. This is captured in 
+the discard column.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# identifying outliers for QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# summary showing number of low-quality cells (as TRUE)
+summary(reasons$discard)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells assuming that 
+most of my dataset consists of high-quality cells. Moreover, I would like to 
+extract the automatically selected thresholds for the quality control metrics.
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scuttle package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality. The filter thresholds used for the 
+QC metrics can be extracted from the attributes of each of the logical vectors
+using attr() function.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# identifying outliers for various QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# extract filter thresholds
+attr(reasons$low_lib_size, "thresholds")
+
+# extract filter thresholds
+attr(reasons$low_n_features, "thresholds")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control (QC) metrics to identify outliers in high-dimensional 
+space based on the QC metrics for each cell. 
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. A cell that is an outlier for any of these metrics is considered to 
+be of low quality. So to identify them we proceed with log-transforming the sum 
+and the detected columns, and creating a matrix with the four data columns; 
+"sum", "detected", "subsets_Mito_percent" and "altexps_ERCC_percent". We then 
+use methods from robustbase package on the created matrix to quantify the 
+“outlyingness” of each cells based on their QC metrics, and then use 
+isOutlier() function from scuttle package to identify low-quality cells that 
+exhibit unusually high levels of outlyingness, which can be checked by 
+summary() function. This and related approaches like PCA-based outlier detection 
+and support vector machines can provide more power to distinguish low-quality 
+cells from high-quality counterparts as they can exploit patterns across many
+QC metrics. However, this comes at some cost to interpretability, as the reason 
+for removing a given cell may not always be obvious.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+library(robustbase)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# log-transformation and matrix creation
+stats <- cbind(log10(df$sum), log10(df$detected),
+    df$subsets_Mito_percent, df$altexps_ERCC_percent)
+
+# quantifying outlyingness 
+outlying <- adjOutlyingness(stats, only.outlyingness = TRUE)
+
+# outliers identification
+multi.outlier <- isOutlier(outlying, type = "higher")
+
+# summary showing number of low-quality cells (as TRUE)
+summary(multi.outlier)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control (QC) metrics to identify outliers and to create 
+diagnostic plots for inspecting the QC metric distribution.
+How can I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them to 
+identify interesting feature subsets, here mitochondrial genes, and calculate 
+the QC metrics on them. The created QC metrics data frame "df" contains a 
+number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scuttle package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality and discarded. This is captured in 
+the discard column of the created "reasons" data frame consisting of identified
+outliers for various QC metrics. Using cbind() function we add the previously 
+created QC metrics data frame "df" to the colData slot of the 
+SingleCellExperiment object. Rename elements in phenotype column of the object. 
+Create a column "discard" in the colData slot of the object that contains 
+discarded cell info from the "reasons" data frame. Now using the updated
+object "sce.416b" we plot the distribution of QC metrics for each batch and 
+phenotype by making use of plotColData() function from scater package.
+It is good practice to inspect the distributions of QC metrics to identify 
+possible problems. In the most ideal case, we would see normal distributions 
+that would justify the 3 MAD threshold used in outlier detection. A large 
+proportion of cells in another mode suggests that the QC metrics might be 
+correlated with some biological state, potentially leading to the loss of 
+distinct cell types during filtering; or that there were inconsistencies with 
+library preparation for a subset of cells, a not-uncommon phenomenon in 
+plate-based protocols.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+library(scater)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# identify outliers for various QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# add "df" to the colData slot of the SingleCellExperiment object
+colData(sce.416b) <- cbind(colData(sce.416b), df)
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# rename elements in phenotype column
+sce.416b$phenotype <- ifelse(grepl("induced", sce.416b$phenotype),
+    "induced", "wild type")
+
+# add discarded cells info to the colData slot of the object
+sce.416b$discard <- reasons$discard
+
+# plot the distribution of QC metrics
+gridExtra::grid.arrange(
+    plotColData(sce.416b, x="block", y="sum", colour_by="discard",
+        other_fields="phenotype") + facet_wrap(~phenotype) + 
+        scale_y_log10() + ggtitle("Total count"),
+    plotColData(sce.416b, x="block", y="detected", colour_by="discard", 
+        other_fields="phenotype") + facet_wrap(~phenotype) + 
+        scale_y_log10() + ggtitle("Detected features"),
+    plotColData(sce.416b, x="block", y="subsets_Mito_percent", 
+        colour_by="discard", other_fields="phenotype") + 
+        facet_wrap(~phenotype) + ggtitle("Mito percent"),
+    plotColData(sce.416b, x="block", y="altexps_ERCC_percent", 
+        colour_by="discard", other_fields="phenotype") + 
+        facet_wrap(~phenotype) + ggtitle("ERCC percent"),
+    ncol=1
+)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells assuming that 
+most of my dataset consists of high-quality cells. Then I would like to subset 
+a SingleCellExperiment object without low-quality cells.
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scuttle package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality and discarded. This is captured in 
+the discard column of the created "reasons" data frame consisting of identified
+outliers for various QC metrics. Using this information we can subset the
+SingleCellExperiment by column to remove low-quality cells.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# identifying outliers for various QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# keeping the columns we don't want to discard
+filtered <- sce.416b[,!reasons$discard]
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells assuming that 
+most of my dataset consists of high-quality cells. Then I would like to mark
+the low-quality cells and keep them in the SingleCellExperiment object.
+How do I do this?
+
+completion:
+To calculate quality control (QC) metrics for each cell, we can use the
+perCellQCMetrics() function from the scater package. In the absence of 
+spike-in transcripts, the proportion of reads mapped to genes in the 
+mitochondrial genome can be used. To do this, we first identify the 
+mitochondrial transcripts in our SingleCellExperiment and then use them 
+to identify interesting feature subsets, here mitochondrial genes, and 
+calculate the QC metrics on them. The created QC metrics data frame contains 
+a number of columns. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. Assuming that most of the 
+dataset consists of high-quality cells, we identify cells that are outliers for 
+the various QC metrics, based on the median absolute deviation (MAD) from the 
+median value of each metric across all cells. By default, we consider a value 
+to be an outlier if it is more than 3 MADs from the median in the “problematic” 
+direction. We use perCellQCFilters() function from the scuttle package for this.
+This function identifies cells with log-transformed library sizes that are more 
+than 3 MADs below the median as well as the proportion-based metrics specified 
+in the sub.fields = arguments. A cell that is an outlier for any of these 
+metrics is considered to be of low quality and discarded. This is captured in 
+the discard column of the created "reasons" data frame consisting of identified
+outliers for various QC metrics. Using this information about the low-quality 
+cells we can mark them in the SingleCellExperiment object and retain them in 
+the downstream analysis. However, for routine analyses it is advised to remove
+them to avoid complications.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+
+# load SingleCellExperiment
+sce.416b <- LunSpikeInData(which="416b") 
+
+# convert data column to factor
+sce.416b$block <- factor(sce.416b$block)
+
+# identifying the mitochondrial transcripts in our SingleCellExperiment
+location <- rowRanges(sce.416b)
+
+# mitochondial transcripts
+is.mito <- any(seqnames(location)=="MT")
+
+# calculate quality control metrics 
+df <- perCellQCMetrics(sce.416b, subsets=list(Mito=is.mito))
+
+# total count per cell
+summary(df$sum)
+
+# number of detected genes
+summary(df$detected)
+
+# percentage of reads mapped to mitochondrial transcripts
+summary(df$subsets_Mito_percent)
+
+# percentage of reads mapped to ERCC transcripts
+summary(df$altexps_ERCC_percent)
+
+# identifying outliers for various QC metrics
+reasons <- perCellQCFilters(df, 
+    sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+
+# copy SingleCellExperiment
+marked <- sce.416b
+
+# add low-quality cell info to colData "discard"
+marked$discard <- reasons$discard
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells based on their 
+expression profiles and add them to the colData slot of my SingleCellExperiment 
+object. Then I would like to perform diagnostic by plotting the proportion of 
+mitochondrial counts against the total count for each cell.
+How can I do this?
+
+completion:
+To start off, we load the SingleCellExperiment object. Sum the expression 
+values (by default, counts) for each feature set in each cell of the object by 
+using aggregateAcrossFeatures() function from scuttle package. Annotate genes 
+using mabIDs() function from org.Mm.eg.db package (for mice). Then calculate 
+quality control (QC) metrics for each cell and append them to the colData slot 
+of the SingleCellExperiment object using addPerCellQCMetrics() function from 
+scuttle package. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. We then use quickPerCellQC() 
+function from scuttle package on the SingleCellExperiment object to identifies 
+low-quality cells and store them in a data frame "qc". A cell that is an outlier 
+for any of QC metrics is considered to be of low quality and discarded. This is 
+captured in the discard column of the created "qc" data frame. We include this 
+information in the SingleCellExperiment object by creating a column "discard" 
+in the colData slot of the object and assigning the discard information to it 
+from the "qc" data frame. Using the updated SingleCellExperiment object we plot 
+the proportion of mitochondrial counts against total count for each cell for 
+diagnostics by making use of plotColData() function from scater package. Here, 
+the aim is to confirm that there are no cells with both large total counts and 
+large mitochondrial counts, to ensure that we are not inadvertently removing 
+high-quality cells that happen to be highly metabolically active. 
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+library(scater)
+library(org.Mm.eg.db)
+
+# load SingleCellExperiment object
+sce.zeisel <- ZeiselBrainData()
+
+# sum the expression values
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+# gene annotation
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+# calculate quality control metrics 
+sce.zeisel <- addPerCellQCMetrics(sce.zeisel, 
+    subsets=list(Mt=rowData(sce.zeisel)$featureType=="mito"))
+
+# identifies low-quality cells
+qc <- quickPerCellQC(colData(sce.zeisel), 
+    sub.fields=c("altexps_ERCC_percent", "subsets_Mt_percent"))
+
+# add discarded cells info to the colData slot of the object
+sce.zeisel$discard <- qc$discard
+
+# plot percent of mitochondrial counts against total count for each cell
+scater::plotColData(sce.zeisel, x="sum", y="subsets_Mt_percent", colour_by="discard")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+calculate quality control metrics to identify low-quality cells based on their 
+expression profiles and add them to the colData slot of my SingleCellExperiment 
+object. Then I would like to perform diagnostic by plotting the proportion of 
+mitochondrial counts against the proportion of ERCC counts.
+How can I do this?
+
+completion:
+To start off, we load the SingleCellExperiment object. Sum the expression 
+values (by default, counts) for each feature set in each cell of the object by 
+using aggregateAcrossFeatures() function from scuttle package. Annotate genes 
+using mabIDs() function from org.Mm.eg.db package (for mice). Then calculate 
+quality control (QC) metrics for each cell and append them to the colData slot 
+of the SingleCellExperiment object using addPerCellQCMetrics() function from 
+scuttle package. The sum column contains the total count for each cell and 
+the detected column contains the number of detected genes. The 
+subsets_Mito_percent column contains the percentage of reads mapped to 
+mitochondrial transcripts. Finally, the altexps_ERCC_percent column contains 
+the percentage of reads mapped to ERCC transcripts. We then use quickPerCellQC() 
+function from scuttle package on the SingleCellExperiment object to identifies 
+low-quality cells and store them in a data frame "qc". A cell that is an outlier 
+for any of QC metrics is considered to be of low quality and discarded. This is 
+captured in the discard column of the created "qc" data frame. We include this 
+information in the SingleCellExperiment object by creating a column "discard" 
+in the colData slot of the object and assigning the discard information to it 
+from the "qc" data frame. Using the updated SingleCellExperiment object we plot 
+the proportion of mitochondrial counts against proportion of ERCC counts for 
+diagnostics by making use of plotColData() function from scater package. 
+Comparison of the ERCC and mitochondrial percentages can also be informative. 
+Low-quality cells with small mitochondrial percentages, large spike-in 
+percentages and small library sizes are likely to be stripped nuclei, i.e., 
+they have been so extensively damaged that they have lost all cytoplasmic 
+content. On the other hand, cells with high mitochondrial percentages and low 
+ERCC percentages may represent undamaged cells that are metabolically active. 
+This interpretation also applies for single-nuclei studies but with a switch 
+of focus: the stripped nuclei become the libraries of interest while the 
+undamaged cells are considered to be low quality.
+
+```{r,eval=FALSE}
+
+library(scRNAseq)
+library(scuttle)
+library(scater)
+library(org.Mm.eg.db)
+
+# load SingleCellExperiment object
+sce.zeisel <- ZeiselBrainData()
+
+# sum the expression values
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, 
+    id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+
+# gene annotation
+rowData(sce.zeisel)$Ensembl <- mapIds(org.Mm.eg.db, 
+    keys=rownames(sce.zeisel), keytype="SYMBOL", column="ENSEMBL")
+
+# calculate quality control metrics 
+sce.zeisel <- addPerCellQCMetrics(sce.zeisel, 
+    subsets=list(Mt=rowData(sce.zeisel)$featureType=="mito"))
+
+# identifies low-quality cells
+qc <- quickPerCellQC(colData(sce.zeisel), 
+    sub.fields=c("altexps_ERCC_percent", "subsets_Mt_percent"))
+
+# add discarded cells info to the colData slot of the object
+sce.zeisel$discard <- qc$discard
+
+# plot percent of mitochondrial counts against percent of ERCC
+scater::plotColData(sce.zeisel, x="altexps_ERCC_percent", y="subsets_Mt_percent",
+    colour_by="discard")
+
+```
+
+--- TASK END

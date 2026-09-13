@@ -1,0 +1,951 @@
+---
+title: "prompt/completion pairs single-cell_intro_chapter 4"
+author: "authors"
+date: "2023-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a single cell RNA sequence (scRNA-seq) count matrix data in file 
+"2261a12c52_counts_Calero_20160113.tsv" in .tsv format. Using this data
+I would like to create a rudimentary SingleCellExperiment object that contains
+information about the genes and the samples.
+How can I do this?
+
+completion:
+To create a rudimentary SingleCellExperiment object, read the count matrix
+data using the read.delim() function. Remove the gene length column from
+the data frame and then convert it to a matrix. Using the created matrix 
+construct the SingleCellExperiment object using SingleCellExperiment() function 
+from SingleCellExperiment package. Note that we provide our data as a named 
+list where each entry of the list is a matrix - in this case, named "counts".
+ 
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# read the scRNA-Seq dataset
+mat <- read.delim("raw_data/2261a12c52_counts_Calero_20160113.tsv", header=TRUE, row.names=1, check.names=FALSE)
+
+# only considering endogenous genes for now
+spike.mat <- mat[grepl("^ERCC-", rownames(mat)),] 
+mat <- mat[grepl("^ENSMUSG", rownames(mat)),] 
+
+# splitting off the gene length column
+gene.length <- mat[,1]
+mat <- as.matrix(mat[,-1]) 
+
+# construct the SingleCellExperiment object
+sce <- SingleCellExperiment(assays = list(counts = mat))
+
+# inspect the singlecellexperiment object
+sce
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a single cell RNA sequence (scRNA-seq) count matrix data in file 
+"2261a12c52_counts_Calero_20160113.tsv" in .tsv format. Using this data
+I would like to create a rudimentary SingleCellExperiment object that contains
+information about the genes and the samples. I would then like to access the
+count data from the created SingleCellExperiment object.
+How can I do this?
+
+completion:
+To create a rudimentary SingleCellExperiment object, read the count matrix
+data using the read.delim() function. Remove the gene length column from
+the data frame and then convert it to a matrix. Using the created matrix 
+construct the SingleCellExperiment object using SingleCellExperiment() function 
+from SingleCellExperiment package. Note that we provide our data as a named 
+list where each entry of the list is a matrix - in this case, named "counts".
+To access the count data from the SingleCellExperiment object we can use 
+assay() function from SingleCellExperiment package, which takes first argument 
+as the SingleCellExperiment object and second argument as the name of the 
+assay - here "counts". Similarly, it can be used to access any assay from 
+the SingleCellExperiment object.
+ 
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# read the scRNA-Seq dataset
+mat <- read.delim("raw_data/2261a12c52_counts_Calero_20160113.tsv", header=TRUE, row.names=1, check.names=FALSE)
+
+# only considering endogenous genes for now
+spike.mat <- mat[grepl("^ERCC-", rownames(mat)),] 
+mat <- mat[grepl("^ENSMUSG", rownames(mat)),] 
+
+# splitting off the gene length column
+gene.length <- mat[,1]
+mat <- as.matrix(mat[,-1]) 
+
+# construct the SingleCellExperiment object
+sce <- SingleCellExperiment(assays = list(counts = mat))
+
+# inspect the singlecellexperiment object
+sce
+
+# access count data
+assay(sce, "counts")
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a single cell RNA sequence (scRNA-seq) count matrix data in
+"2261a12c52_counts_Calero_20160113.tsv" file in .tsv format. Using this data
+I would like to create a rudimentary SingleCellExperiment object that contains
+information about the genes and the samples. In addition to the raw count data 
+I would also like to have normalized data in the same SingleCellExperiment 
+object.
+How can I do this?
+
+completion:
+To create a rudimentary SingleCellExperiment object, read the count matrix
+data using the read.delim() function. Remove the gene length column from
+the data frame and then convert it to a matrix. Using the created matrix 
+construct the SingleCellExperiment object using SingleCellExperiment() function 
+from SingleCellExperiment package. Note that we provide our data as a named 
+list where each entry of the list is a matrix - in this case, named "counts".
+To compute a log-transformed normalized expression matrix use logNormCounts()
+function from scuttle package, and store it as another assay. By reassigning 
+the results of logNormCounts() function back to "sce" we overwrite the previous
+"sce" and store both original and normalised data in the same 
+SingleCellExpression object "sce".
+ 
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scuttle)
+
+# read the scRNA-Seq dataset
+mat <- read.delim("raw_data/2261a12c52_counts_Calero_20160113.tsv", header=TRUE, row.names=1, check.names=FALSE)
+
+# only considering endogenous genes for now
+spike.mat <- mat[grepl("^ERCC-", rownames(mat)),] 
+mat <- mat[grepl("^ENSMUSG", rownames(mat)),] 
+
+# splitting off the gene length column
+gene.length <- mat[,1]
+mat <- as.matrix(mat[,-1]) 
+
+# construct the SingleCellExperiment object
+sce <- SingleCellExperiment(assays = list(counts = mat))
+
+# compute a log-transformed normalized expression matrix and store it as another assay
+sce <- logNormCounts(sce)
+
+# inspect the singlecellexperiment object
+sce
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a single cell RNA sequence (scRNA-seq) count matrix data in 
+"2261a12c52_counts_Calero_20160113.tsv" file in .tsv format. Using this data
+I would like to create a rudimentary SingleCellExperiment object that contains
+information about the genes and the samples. In addition to the raw count data 
+I would also like to have normalized data in the same SingleCellExperiment 
+object. Moreover I would like to create a matrix which adds 100 to all the 
+counts of the created SingleCellExperiment object, which I would like to use
+as a new assay and add to the SingleCellExperiment object.
+How can I do this?
+
+completion:
+To create a rudimentary SingleCellExperiment object, read the count matrix
+data using the read.delim() function. Remove the gene length column from
+the data frame and then convert it to a matrix. Using the created matrix 
+construct the SingleCellExperiment object using SingleCellExperiment() function 
+from SingleCellExperiment package. Note that we provide our data as a named 
+list where each entry of the list is a matrix - in this case, named "counts".
+To compute a log-transformed normalized expression matrix use logNormCounts()
+function from scuttle package, and store it as another assay. By reassigning 
+the results of logNormCounts() function back to "sce" we overwrite the previous
+"sce" and store both original and normalised data in the same 
+SingleCellExpression object "sce". To create a matrix which adds 100 to all 
+the counts of the "sce" object use counts() function from SingleCellExperiment 
+package. The created matrix can be added to the "sce" object using assay() 
+function, which can be confirmed by retrieving all the available assays in the 
+"sce" object by assays() getter, from the SingleCellExperiment package. 
+ 
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scuttle)
+
+# read the scRNA-Seq dataset
+mat <- read.delim("raw_data/2261a12c52_counts_Calero_20160113.tsv", header=TRUE, row.names=1, check.names=FALSE)
+
+# only considering endogenous genes for now
+spike.mat <- mat[grepl("^ERCC-", rownames(mat)),] 
+mat <- mat[grepl("^ENSMUSG", rownames(mat)),] 
+
+# splitting off the gene length column
+gene.length <- mat[,1]
+mat <- as.matrix(mat[,-1]) 
+
+# construct the SingleCellExperiment object
+sce <- SingleCellExperiment(assays = list(counts = mat))
+
+# compute a log-transformed normalized expression matrix and store it as another assay
+sce <- logNormCounts(sce)
+
+# create a matrix from the SingleCellExperiment object
+counts_100 <- counts(sce) + 100
+
+# assign a new entry to assays slot
+assay(sce, "counts_100") <- counts_100 
+
+# inspect the singlecellexperiment object for new assay addition
+assays(sce) 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object with three assays. I would
+like to only keep first two assays.
+How can I do this?
+
+completion:
+SingleCellExperiment package can be used for creating SingleCellExperiment 
+objects and for working with them. Here using assays() getter, we first 
+retrieve all the available assays, then we subset "sce" object with first
+two assays. Here setter of the same name can be used to modify the set of 
+available assays.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# inspect the singlecellexperiment object for number of assays 
+assays(sce) 
+
+# only keeping the first two assays
+assays(sce) <- assays(sce)[1:2]
+
+# inspect the singlecellexperiment object
+sce
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object with number of assays. I would
+like to get the names of the assays. 
+How can I do this?
+
+completion:
+SingleCellExperiment package can be used for creating SingleCellExperiment 
+objects and for working with them. Here using assayNames() function we can 
+get and set the names of the assays. We can also use names() function, which
+is less efficient. 
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# get the names of the assays
+assayNames(sce)
+
+# same result, but slightly less efficient
+names(assays(sce)) 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I am metadata of my single cell RNA sequence (scRNA-seq) experiment in
+"37064fb2008_E-MTAB-5522.sdrf.txt" file in .txt format. How can I read it?
+
+completion:
+Data in .txt format can be read using read.delim() function.
+
+```{r,eval=FALSE}
+
+# read metadata in .txt file format
+coldata <- read.delim("raw_data/37064fb2008_E-MTAB-5522.sdrf.txt", check.names=FALSE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I am metadata of my single cell RNA sequence (scRNA-seq) experiment in 
+"37064fb2008_E-MTAB-5522.sdrf.txt" file in .txt format. I would like to 
+read it and add it to my already created SingleCellExperiment object
+of the single cell data.
+How can I do this?
+
+completion:
+We can read the metadata in .txt format using read.delim() function. Metadata
+describes the columns of our primary data, e.g., the samples or cells of our 
+experiment. This is stored in the colData slot, a DataFrame object where 
+rows correspond to cells and columns correspond to metadata fields, 
+e.g., batch of origin, treatment condition. From the read data only keep
+the cells involved in count matrix of already created SingleCellExperiment 
+object. Filter the columns of interest and create a data frame using 
+Dataframe() function. Then add the data frame to an existing 
+SingleCellExperiment object using colData() function from 
+SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# read metadata in .txt file format
+coldata <- read.delim("raw_data/37064fb2008_E-MTAB-5522.sdrf.txt", check.names=FALSE)
+
+# only keeping the cells involved in the count matrix in 'mat', 
+# -used to create SingleCellExperiment object
+coldata <- coldata[coldata[,"Derived Array Data File"]=="counts_Calero_20160113.tsv",]
+
+# only keeping interesting columns, and setting the library names as the row names
+coldata <- DataFrame(
+    genotype=coldata[,"Characteristics[genotype]"],
+    phenotype=coldata[,"Characteristics[phenotype]"],
+    spike_in=coldata[,"Factor Value[spike-in addition]"],
+    row.names=coldata[,"Source Name"]
+)
+
+# inspect the coldata
+coldata
+
+# create/previously created SingleCellExperiment object
+sce <- SingleCellExperiment(list(counts=mat))
+
+# add coldata to an existing SingleCellExperiment object
+colData(sce) <- coldata
+
+# inspect the SingleCellExperiment object
+sce
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I am metadata of my single cell RNA sequence (scRNA-seq) experiment in 
+"37064fb2008_E-MTAB-5522.sdrf.txt" file in .txt format. I would like to 
+read it, and use it and the count matrix of my single cell data, to create 
+a SingleCellExperiment object.
+How can I do this?
+
+completion:
+We can read the metadata in .txt format using read.delim() function. Metadata
+describes the columns of our primary data, e.g., the samples or cells of our 
+experiment. This is stored in the colData slot, a DataFrame object where 
+rows correspond to cells and columns correspond to metadata fields, 
+e.g., batch of origin, treatment condition. From the read data only keep
+the cells involved in count matrix of already created SingleCellExperiment 
+object. Filter the columns of interest and using the Dataframe() function 
+create a data frame that we will use along with the count matrix of  
+the single cell data to create a SingleCellExperiment object using 
+SingleCellExperiment() constructor from the SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# read metadata in .txt file format
+coldata <- read.delim("raw_data/37064fb2008_E-MTAB-5522.sdrf.txt", check.names=FALSE)
+
+# only keeping the cells involved in the count matrix in 'mat', 
+# -used to create SingleCellExperiment object
+coldata <- coldata[coldata[,"Derived Array Data File"]=="counts_Calero_20160113.tsv",]
+
+# only keeping interesting columns, and setting the library names as the row names
+coldata <- DataFrame(
+    genotype=coldata[,"Characteristics[genotype]"],
+    phenotype=coldata[,"Characteristics[phenotype]"],
+    spike_in=coldata[,"Factor Value[spike-in addition]"],
+    row.names=coldata[,"Source Name"]
+)
+
+# inspect coldata
+coldata
+
+# create a SingleCellExperiment object
+sce <- SingleCellExperiment(assays = list(counts=mat), colData=coldata)
+
+# inspect the SingleCellExperiment object
+sce
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data and I would like to 
+access the column data of my object.
+How can I do this?
+
+completion:
+Column data of a SingleCellExperiment object can be accessed using 
+colData() function from the SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# access column data
+colData(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data and I would like to 
+access a specific column of the colData slot of my object.
+How can I do this?
+
+completion:
+We can extract a single field/column of a SingleCellExperiment
+object's colData by using the $ shortcut.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# access genotype column of colData
+head(sce$genotype)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+add quality control metrics to the colData slot of my object.
+How can I do this?
+
+completion:
+Some functions automatically add column metadata by returning a 
+SingleCellExperiment with extra fields in the colData slot. For example, 
+the scuttle package contains the addPerCellQC() function that appends a number 
+of quality control metrics to the colData.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scuttle)
+
+# append quality control metrics to the colData
+sce <- addPerCellQC(sce)
+
+# inspect the singlecellexperiment object's column data
+colData(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+store feature-level annotation in the rowData slot of my object.
+How can I do this?
+
+completion:
+We store feature-level annotation in the rowData slot, a DataFrame where 
+each row corresponds to a gene and contains annotations like the transcript 
+length or gene symbol. We can manually get and set this with the rowData() 
+function from SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# store gene length in the rowData slot
+rowData(sce)$Length <- gene.length
+
+# inspect the singlecellexperiment object's row data
+rowData(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+extract feature-level data from my object and store them in the rowData slot.
+How can I do this?
+
+completion:
+addPerFeatureQC() function from the scuttle package returns a 
+SingleCellExperiment object with the rowData populated with relevant bits of 
+information.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scuttle)
+
+# store feature-level data in the rowData slot
+sce <- addPerFeatureQC(sce)
+
+# inspect the singlecellexperiment object's row data
+rowData(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+add genomic coordinates in it in the form of GRanges or GRangesList.
+How can I do this?
+
+completion:
+In a SingleCellExperiment object, there is a special rowRanges slot to hold 
+genomic coordinates in the form of a GRanges or GRangesList. This stores 
+describes the chromosome, start, and end coordinates of the features 
+(genes, genomic regions) that can be easily queryed and manipulated via the 
+GenomicRanges framework. The manner with which we populate the rowRanges 
+depends on the organism and annotation used during alignment and quantification. 
+For example, when we have Ensembl identifiers, we might use rtracklayer 
+package to load in a GRanges from an GTF file containing the Ensembl annotation 
+used in this dataset using import() function.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(rtracklayer)
+
+# load GRanges from the file 
+gene.data <- rtracklayer::import("raw_data/22a336d3609_Mus_musculus.GRCm38.82.gtf.gz")
+
+# cleaning up the object
+gene.data <- gene.data[gene.data$type=="gene"]
+names(gene.data) <- gene.data$gene_id
+is.gene.related <- grep("gene_", colnames(mcols(gene.data)))
+mcols(gene.data) <- mcols(gene.data)[,is.gene.related]
+
+# creating rowRanges
+rowRanges(sce) <- gene.data[rownames(sce)]
+
+# inspecting rowRanges
+rowRanges(sce)[1:10,]
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I have 
+results/annotations that do not fit in the any of the "colData, rowData, 
+rowRanges" slots. Nevertheless, I would like to add them in my object.
+How can I do this?
+
+completion:
+Some analyses contain results or annotations that do not fit into the 
+aforementioned, "colData, rowData, rowRanges", slots, e.g., study metadata. 
+This can be stored in the metadata slot, a named list of arbitrary objects, 
+by simply appending them to the metadata slot using metadata() function from
+SingleCellExperiment package, for our analysis.
+The main disadvantage of storing content in the metadata() is that it will 
+not be synchronized with the rows or columns when subsetting or combining. 
+Thus, if an annotation field is related to the rows or columns, it should 
+be stored in the rowData() or colData() instead.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# vector containing gene of interest
+my_genes <- c("gene_1", "gene_5")
+
+# adding them to the metadata slot
+metadata(sce) <- list(favorite_genes = my_genes)
+
+# inspecting metadata slot
+metadata(sce)
+
+## or simply appending them using $
+# vector containing gene of interest
+your_genes <- c("gene_4", "gene_8")
+
+# adding them to the metadata slot using $
+metadata(sce)$your_genes <- your_genes
+
+# inspecting metadata slot
+metadata(sce)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+subset my object to contain the first 10 cells along with the 
+associated annotation.
+How can I do this?
+
+completion:
+One of the major advantages of using the SingleCellExperiment is that 
+operations on the rows or columns of the expression data are synchronized 
+with the associated annotation. So when we subset our SingleCellExperiment 
+object to the first 10 cells, both the count matrix and the colData() are 
+automatically subsetted.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# subset the object to the firsts 10 cells
+first.10 <- sce[,1:10]
+
+# count the columns in the subsetted object (only 10 columns)
+ncol(counts(first.10)) 
+
+# inspect coldata of the subsetted object (only 10 rows)
+colData(first.10) 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+subset my object to contain only wild-type cells along with the 
+associated annotation.
+How can I do this?
+
+completion:
+One of the major advantages of using the SingleCellExperiment is that 
+operations on the rows or columns of the expression data are synchronized 
+with the associated annotation. We can subset our SingleCellExperiment object 
+to contain only wild-type cells based on its column data entries using colData()
+function from SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# subset the object to contain only wild-type cells
+wt.only <- sce[, sce$phenotype == "wild type phenotype"]
+
+# count the columns in the subsetted object (wild-type only)
+ncol(counts(wt.only))
+
+# inspect coldata of the subsetted object
+colData(wt.only)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+subset my object to contain only protein-coding genes along with the 
+associated annotation.
+How can I do this?
+
+completion:
+One of the major advantages of using the SingleCellExperiment is that 
+operations on the rows or columns of the expression data are synchronized 
+with the associated annotation. We can subset our SingleCellExperiment object 
+to contain only protein-coding genes based on its cell data entries using 
+rowData() function from SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# subset the object to contain only protein-coding genes
+coding.only <- sce[rowData(sce)$gene_biotype == "protein_coding",]
+
+# count the rows in the subsetted object (protein-coding genes only)
+nrow(counts(coding.only))
+
+# inspect rowdata of the subsetted object
+rowData(coding.only)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have multiple SingleCellExperiment objects of my single cell data. They have 
+the same row annotation values, using which I would like to combine them.
+How can I do this?
+
+completion:
+One of the major advantages of using the SingleCellExperiment is that 
+operations on the rows or columns of the expression data are synchronized 
+with the associated annotation. If we were to combine multiple 
+SingleCellExperiment objects, the class would take care of combining both 
+the expression values and the associated annotation in a coherent manner. 
+Assuming that all objects involved have the same row annotation values 
+and compatible column annotation fields, we can use cbind() function 
+to combine objects by column.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# combining multiple objects with same row annotation
+sce2 <- cbind(sce, sce)
+
+# count the columns (twice as many)
+ncol(counts(sce2)) 
+
+# inspecting column data (twice as many rows)
+colData(sce2) 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have multiple SingleCellExperiment objects of my single cell data. They have 
+the same column annotation values, using which I would like to combine them.
+How can I do this?
+
+completion:
+One of the major advantages of using the SingleCellExperiment is that 
+operations on the rows or columns of the expression data are synchronized 
+with the associated annotation. If we were to combine multiple 
+SingleCellExperiment objects, the class would take care of combining both 
+the expression values and the associated annotation in a coherent manner. 
+Assuming that all objects involved have the same column annotation values 
+and compatible row annotation fields, we can use rbind() function 
+to combine objects by row.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# combining multiple objects with same column annotation
+sce2 <- rbind(sce, sce)
+
+# count the rows (twice as many)
+nrow(counts(sce2))
+
+# inspecting row data (twice as many rows)
+rowData(sce2) 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like
+to perform PCA on it, store the results, and access the reduced dimensions. 
+How can I do this?
+
+completion:
+The reducedDims slot is specially designed to store reduced dimensionality 
+representations of the primary data obtained by methods such as PCA and  
+t-SNE. This slot contains a list of numeric matrices of low-reduced 
+representations of the primary data, where the rows represent the columns 
+of the primary data (i.e., cells), and columns represent the dimensions. 
+As this slot holds a list, we can store multiple PCA/t-SNE/etc results 
+for the same dataset. To calculate a PCA representation of the data we first
+normalize the data and store it in the object, if not there already, using 
+logNormCounts() function, and then perform PCA on the data using runPCA() 
+function from scater package. The reduced dimensions can be accessed from 
+the reducedDim slot using dim() function, and the names of all the entries in 
+the reducedDim slot can be accessed via reducedDims() accessor.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scater)
+
+# normalized the data
+sce <- scater::logNormCounts(sce)
+
+# run PCA
+sce <- scater::runPCA(sce)
+
+# count the dimensions
+dim(reducedDim(sce, "PCA"))
+
+# get the names of all entries in reducedDims slot
+reducedDims(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have data for a distinct set of features but the same set of samples/cells
+as my SingleCellExperiment object of my single cell data. I would like to 
+store them in my SingleCellExperiment object as an alternative experiment.
+How can I do this?
+
+completion:
+The SingleCellExperiment class provides the concept of “alternative experiments” 
+where we have data for a distinct set of features but the same set of 
+samples/cells. To store distinct feature sets as an alternative
+experiment, we first create a separate SummarizedExperiment object using 
+SummarizedExperiment() function from SummarizedExperiment package. Then we 
+store this SummarizedExperiment object in our SingleCellExperiment object 
+via the altExp() setter. 
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+
+# read the scRNA-Seq dataset
+mat <- read.delim("raw_data/2261a12c52_counts_Calero_20160113.tsv", header=TRUE, row.names=1, check.names=FALSE)
+
+# only considering endogenous genes for now
+spike.mat <- mat[grepl("^ERCC-", rownames(mat)),] 
+
+# create SummarizedExperiment object (-1 to get rid of the first gene length column)
+spike_se <- SummarizedExperiment(list(counts=spike.mat[,-1]))
+
+# store SummarizedExperiment object in SingleCellExperiment object
+altExp(sce, "spike") <- spike_se
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data, that may also
+contain alternative experiments. I would like to retrieve all of the 
+available alternative experiments. 
+How can I do this?
+
+completion:
+The SingleCellExperiment class provides the concept of “alternative experiments” 
+where we have data for a distinct set of features but the same set of 
+samples/cells. Alternative experiments can be stored in a SingleCellExperiment 
+object via the altExp() setter. And all the available alternative experiments 
+can be retrieve with altExps() getter from SingleCellExperiment package.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+
+# retrieve all of the available alternative Experiments
+altExps(sce)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. I would like to 
+get a numeric vector of per-cell scaling factors used for normalization. 
+How can I do this?
+
+completion:
+Scaling factors used for normalization are typically automatically added by 
+normalization functions. An example is deconvolution-based size factors 
+added by computeSumFactors() function from scran package. Or per-cell 
+size factors from the library sizes by librarySizeFactors() function 
+from scater package. Per-cell scaling factors used for normalization
+can be obtained by sizeFactors() function.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scran)
+library(scater)
+
+# add scaling factors
+sce <- scran::computeSumFactors(sce)
+
+# get scaling factors
+summary(sizeFactors(sce))
+
+# SECOND METHOD; add scaling factors 
+sizeFactors(sce) <- scater::librarySizeFactors(sce)
+
+# get scaling factors
+summary(sizeFactors(sce))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also 
+contains PCA representation. I would like to set a factor of per-cell labels 
+corresponding to groupings assigned by unsupervised clustering. 
+How can I do this?
+
+completion:
+The colLabels() function from SingleCellExperiment package allows us to get or 
+set a factor of per-cell labels corresponding to groupings assigned by 
+unsupervised clustering, or predicted cell type identities from classification 
+algorithms.
+
+```{r,eval=FALSE}
+
+library(SingleCellExperiment)
+library(scran)
+
+# assigned labels based on clusters
+colLabels(sce) <- scran::clusterCells(sce, use.dimred="PCA")
+
+# table of labels
+table(colLabels(sce))
+
+```

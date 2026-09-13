@@ -1,0 +1,747 @@
+---
+title: "prompt/completion pairs chapter 6"
+author: "authors"
+date: "2023-10-19"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a BED file called "cpgi.hg19.chr21.bed". 
+I want to read in this file and convert it to 
+a GRanges object. How do I do this?
+
+completion:
+To read in a BED file and convert it to 
+a GRanges object, you can make use of the
+`rtracklayer` library in R. The function 
+`import.bed` reads in BED files and automatically
+converts them to a GRanges object.     
+
+```{r,eval=FALSE}
+require(rtracklayer)
+
+# read in data
+data <- import.bed ("cpgi.hg19.chr21.bed")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have an Encode formatted broad peak file called
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz"
+which holds information from my ChIP-seq experiment. 
+I want to read this file in and convert it to a GRanges
+object. How do I do this? 
+
+completion:
+To read an Encode formatted broad peak file and turn 
+it into a GRanges object, you can make use of the 
+`readBroadPeak` function from the genomation library.
+Here is how you do it:
+
+```{r,eval=FALSE}
+library(genomation)
+
+# read in file
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have an Encode formatted broad peak file called
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz"
+which holds information from my ChIP-seq experiment. 
+I have another file called "cpgi.hg19.chr21.bed". This
+is a BED file, and holds information about the locations 
+of CpG islands. I want to see if any peaks in my ChIP-seq 
+experiment are located in CpG islands. How do I do this?
+
+completion:
+To determine if any peaks from your ChIP-seq experiment are located 
+in CpG islands in R, you can use the GenomicRanges package. To read in 
+BED files, you can make use of the import.bed function from the 
+rtracklayer library. To read in Encode formatted broad peak files
+you can make use of the `readBroadPeak` function from the genomation
+library. After reading in the files, you can find overlaps by using the
+`subsetByOverlaps` function from the GenomicRanges library. 
+
+```{r,eval=FALSE}
+require(genomation)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read in files
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+
+# find overlaps
+res <- subsetByOverlaps(bp,cpg)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have an Encode formatted broad peak file called
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz"
+which holds information from my ChIP-seq experiment. 
+I have another file called "cpgi.hg19.chr21.bed". This
+is a BED file, and holds information about the locations 
+of CpG islands. I want to count the number of peaks in my ChIP-seq 
+experiment that overlap with certain CpG islands. How do I do this?
+
+completion:
+To count the number of peaks from your ChIP-seq experiment 
+that overlap with the CpG islands, you can make use of the 
+GenomicRanges library in R. To read in BED files, you can 
+make use of the import.bed function from the rtracklayer 
+library. To read in Encode formatted broad peak files
+you can make use of the `readBroadPeak` function from the 
+genomation library. After reading in the files, you can use
+the function `countOverlaps` to count the amount
+of peaks that overlap with the CpG islands. 
+
+```{r,eval=FALSE}
+require(genomation)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read in files
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+
+# count overlaps
+counts <- countOverlaps(cpg, bp)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have an Encode formatted broad peak file called
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz"
+which holds information from peaks in my ChIP-seq experiment. 
+I have another file called "cpgi.hg19.chr21.bed". This
+is a BED file, and holds information about the locations 
+of CpG islands. I want to find the nearest CpG island
+for each peak in my ChIP-seq experiment. How do I do this?
+
+completion:
+To find the nearest CpG island for each peak in your ChIP-seq experiment,
+you can use the GenomicRanges package. To read in BED files, you can 
+make use of the import.bed function from the rtracklayer 
+library. To read in Encode formatted broad peak files
+you can make use of the `readBroadPeak` function from the 
+genomation library. After reading in the files, you can
+find the nearest CpG island for each ChIP-seq peak by 
+using the `nearest` function. Here's how you can do it:
+
+```{r,eval=FALSE}
+require(genomation)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read in files
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+
+# find nearest CpG island for each
+# peak in ChIP-seq experiment
+res <- nearest(bp,cpg)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have an Encode formatted broad peak file called
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz"
+which holds information from peaks in my ChIP-seq experiment. 
+I have another file called "cpgi.hg19.chr21.bed". This
+is a BED file, and holds information about the locations 
+of CpG islands. I want to find the distane to the 
+nearest CpG island for each peak in my ChIP-seq experiment. 
+How do I do this?
+
+completion:
+To find the distane to the nearest CpG island for each peak in 
+your ChIP-seq experiment,you can use the GenomicRanges package. 
+To read in BED files, you can make use of the import.bed function 
+from the rtracklayer library. To read in Encode formatted broad 
+peak files you can make use of the `readBroadPeak` function 
+from the genomation library. After reading in the files, you can
+find the nearest CpG island for each ChIP-seq peak by 
+using the `nearest` function. Here's how you can do it:
+
+
+```{r,eval=FALSE}
+require(genomation)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read in files
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+
+# find distance to nearest CpG island
+dists <- distanceToNearest(bp,cpg,select="arbitrary")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "wgEncodeHaibTfbsGm12878Sp1Pcr1xAlnRep1.chr21.bam"
+which is in BAM format. I want to extract ranges between 9411240 and 
+9412324 of chromosome 21. How do I do this?
+
+completion:
+To read in information between a certain range from a BAM file, 
+you can make use of the Rsamtools and GenomicAlignments libraries in R.
+The range of interest can be defined in a GRanges object. This object 
+is then used to create a ScanBamParam object, which can be used to 
+scan the BAM file for the specified region. Here is how you do it:
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+require(Rsamtools)
+
+# create GRanges object
+gr <- GRanges (seqnames = "chr21", 
+               ranges = IRanges (start =9411240,end = 9412324 ))
+
+# create ScanBamParam object
+region <- ScanBamParam(which=gr)
+
+# read in bam file with specified ranges
+alns <- readGAlignments("wgEncodeHaibTfbsGm12878Sp1Pcr1xAlnRep1.chr21.bam",
+                        param = region)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "wgEncodeHaibTfbsGm12878Sp1Pcr1xAlnRep1.chr21.bam"
+which is in BAM format. I want to get the coverage of this file. 
+How do I do this?
+
+completion:
+To get the coverage vector of information in a BAM file,
+you can make use of the `coverage` function from the 
+GenomicAlignments library. Here is how you do it:
+
+```{r,eval=FALSE}
+require (GenomicAlignments)
+
+covs <- coverage("wgEncodeHaibTfbsGm12878Sp1Pcr1xAlnRep1.chr21.bam")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "wgEncodeHaibTfbsA549.chr21.bw" which is 
+in BigWig format. I want to read in the information of 
+chromosome 21 in the range between 9415815 and 
+9417514. How do I do this?
+
+completion:
+To read in information between a certain range from a BigWig
+file, you can make use of the `import` function. To import
+a certain range, you can make a GRanges object with the region 
+of interest. This can then be passed to the `which` argument
+from the `import` function to exclusively import information
+in the range of interest. 
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+
+# create GRanges object
+gr <- GRanges (seqnames = "chr21", 
+               ranges = IRanges (start =9415815,end = 9417514 ))
+
+# read file
+bw_res <- import("wgEncodeHaibTfbsA549.chr21.bw", which = gr)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "wgEncodeHaibTfbsA549.chr21.bw" which is 
+in BigWig format. I want to read in the information of 
+chromosome 21 in the range between 9415815 and 
+9417514 and get the coverage. How do I do this?
+
+completion:
+To read in information between a certain range from a BigWig
+file, you can make use of the `import` function. To import
+a certain range, you can make a GRanges object with the region 
+of interest. This can then be passed to the `which` argument
+from the `import` function to exclusively import information
+in the range of interest. To get the coverage vector, you can
+make use of the `coverage` function from the GenomicAlignments
+library. 
+
+```{r,eval=FALSE}
+require(GenomicAlignments)
+
+# create GRanges object
+gr <- GRanges (seqnames = "chr21", 
+               ranges = IRanges (start =9415815,end = 9417514 ))
+
+# read file
+bw_res <- import("wgEncodeHaibTfbsA549.chr21.bw", which = gr)
+
+# get coverage vector
+cov_res <- coverage(bw_res)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file called "cpgi.hg19.chr21.bed"
+which is a BED file holding information about
+the position of CpG islands on chromosome 21. 
+I want to visualize the positions of 
+CpG islands on chromosome 21 in a plot. 
+How do I do this?
+
+completion:
+To visualize the positions of CpG islands
+on chromosome 21 you can make use of the Gviz
+library in R. Here is how you can do it:
+
+```{r,eval=FALSE}
+require(Gviz)
+require(rtracklayer)
+
+# read in file
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+
+# creata data track
+cpg_track <- AnnotationTrack(cpg, name="CpG")
+
+# create genome track
+gtrack <- GenomeAxisTrack()
+
+# create ideogram track
+itrack <- IdeogramTrack(genome = "hg19", chromosome = "chr21")
+
+# plot tracks
+plotTracks(list(itrack, gtrack, cpg_track))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a RefSeq file called "refseq.hg19.chr20.bed"
+which is in BED format. This holds information
+of ranges on chromosome 20 which are associated with
+promoters, exons, introns and TSSes. I also have ChIP-seq
+data in a file called "H1.ESC.H3K4me3.chr20.bw" which is
+in BigWig format. I want to create a matrix of ChIP-seq scores 
+for the promotor regions. I then want to plot the average
+enrichment values around promoters. How do I do this?
+
+completion:
+To create a matrix of ChIP-seq scores for promoter 
+regions and plot the average enrichment values around 
+promoters, you can make use of the genomation library
+to analyze your data. You can read in the refseq data using
+the readTranscriptFeatures function. To create
+a score matrix you can make use of the `ScoreMatrix`
+function. To then plot the results, you can use the function
+plotMeta or heatMatrix. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# reading in file
+# You may want to adjust the promoter region size according to your analysis requirements:
+rs_file <- readTranscriptFeatures("refseq.hg19.chr20.bed", 
+                                  up.flank = 500, down.flank=500)
+
+# create score matrix
+sm <- ScoreMatrix("H1.ESC.H3K4me3.chr20.bw",rs_file$promoters,
+               type="bigWig",strand.aware = TRUE)
+
+# plot average enrichment
+plotMeta(sm, xcoords = c(-500,500),
+         ylab="Enrichment",dispersion = "se",
+         xlab="bases around promoter")
+
+heatMatrix(sm,order=TRUE,xcoords = c(-500,500),
+           xlab="bases around promoter")         
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a RefSeq file called "refseq.hg19.chr20.bed"
+which is in BED format. This holds information
+of ranges on chromosome 20 which are associated with
+promoters, exons, introns and TSSes. I also have ChIP-seq
+data in 2 files from 2 experiments called 
+"H1.ESC.H3K4me3.chr20.bw" and "H1.ESC.dnase.chr20.bw" which are
+in BigWig format. I want to create a matrix of ChIP-seq scores 
+for the promotor regions. I then want to plot the average
+enrichment values around promoters. How do I do this?
+
+completion:
+To create a matrix of ChIP-seq scores for promoter 
+regions and plot the average enrichment values around 
+promoters, you can make use of the genomation library
+to analyze your data. You can read in the refseq data using
+the readTranscriptFeatures function. To create
+a score matrix you can make use of the `ScoreMatrixList`
+function. To then plot the results, you can use the function
+plotMeta or multiHeatMatrix. Here is how you do it:
+
+```{r,eval=FALSE}
+require(genomation)
+
+# reading in file
+# You may want to adjust the promoter region size according to your analysis requirements:
+rs_file <- readTranscriptFeatures("refseq.hg19.chr20.bed", 
+                                  up.flank = 500, down.flank=500)
+
+
+# create score matrix
+sm <- ScoreMatrixList(c(exp1="H1.ESC.H3K4me3.chr20.bw",
+                        exp2="H1.ESC.dnase.chr20.bw"),
+                      rs_file$promoters,
+                      type="bigWig",strand.aware = TRUE)
+
+# create plots
+plotMeta(sm)
+
+multiHeatMatrix(sm,order=TRUE,xcoords = c(-500,500),
+                xlab="bases around promoter",winsorize = c(0,95),
+                matrix.main = c("exp1","exp2"),
+                column.scale=TRUE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a BED file called "cpgi.hg19.chr21.bed".
+This holds information about the location of CpG 
+islands on chromosome 21. I want to plot the location
+of these CpG islands in a karyogram. I have another
+file called "wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz". 
+This is an Encode formatted broad peak file which holds 
+the information of where peaks occurred in my ChIPseq 
+experiment. In the extra data there is a column score. 
+I would like to also plot the positions of the beginning of
+the peaks of the ChIPseq experiment on the karyogram, 
+and have a way of visualizing the score as well. How do I do this?
+
+completion:
+To plot the locations of CpG islands and ChIP-seq peaks on 
+chromosome 21, and visualize the scores of ChIP-seq peaks, you can use the 
+ggbio library. The data is read in as a GRanges object, and only
+information of chromosome 21 is retained. To then plot a karyogram
+you can make use of the ideoCyto data from the biovizBase package. 
+This allows you to plot an empty karyogram, on which you can plot
+the position of CpG islands, and the position and score of your
+ChIP-seq experiment. Below you can find an example on how to do this:
+
+```{r,eval=FALSE}
+require(rtracklayer)
+require(ggbio)
+require(BSgenome.Hsapiens.UCSC.hg19)
+require(genomation)
+
+# read in data
+cpg <- import.bed ("cpgi.hg19.chr21.bed")
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+
+# get info of chr21
+bp <- bp[seqnames(bp)=="chr21"]
+seqlevels(bp) <- "chr21"
+
+# set seqlevels to length of chromosome 21
+seqlengths(bp) <- seqlengths(Hsapiens)["chr21"]
+
+# set seqlengths of cpg of chromosome 21
+seqlengths(cpg) <-  seqlengths(Hsapiens)["chr21"]
+
+# create object for plotting:
+data(ideoCyto, package = "biovizBase")
+region <- ideoCyto$hg19[seqnames(ideoCyto$hg19)=="chr21"]
+seqlevels(region) <- "chr21"
+p <- autoplot(seqinfo(region), layout = "karyogram")
+
+# plot cpg info and ChIPseq info
+p + layout_karyogram (cpg) + 
+layout_karyogram(bp,aes(x=start,y=score),
+                geom="point",color="red")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a file named "wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz," which 
+is an Encode formatted broad peak file. This file provides 
+information regarding the locations of peaks in my ChIP-seq 
+experiment. My goal is to create a circos plot to 
+visualize the position of the peaks. 
+There is a column for 
+scores in the extra data of this file. I want to
+to include  a way to visualize the scores 
+effectively. The ChIPseq data is data from the whole human
+genome, except for chromosome Y. 
+How can I do this?
+
+completion:
+To create a Circos plot to visualize the positions of ChIP-seq peaks, 
+including an effective way to visualize the scores, you can make use
+of the ggbio library. You can make use of the ideoCyto data from the biovizBase 
+package, to get the general information for the whole genome, removing chromosome Y,
+so that you can set an empty circle with chromosome names for further plotting. 
+Then, you can plot your ChIP-seq data in this. Below is an example on 
+how to do it:
+
+```{r,eval=FALSE}
+require(rtracklayer)
+require(ggbio)
+require(genomation)
+
+# read in data
+bp <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+
+# set the chromsome in a circle, excluding chromosome Y
+data(ideoCyto, package = "biovizBase")
+chr_info <- ideoCyto$hg19[seqnames(ideoCyto$hg19)!="chrY"]
+seqlevels(chr_info,pruning.mode="coarse") <- seqlevels(chr_info)[seqlevels(chr_info)!="chrY"]
+seqlengths(chr_info) <- seqlengths(chr_info)[names(seqlengths(chr_info))!="chrY"]
+
+
+# prepare object for final plot
+# set the chromsome in a circle
+p <- ggplot() + layout_circle(chr_info, geom = "ideo", fill = "white",
+                              colour="black",
+                              radius = 39, trackWidth = 0.1)
+
+# set chromosome names
+p <- p + layout_circle(as(seqinfo(chr_info),"GRanges"), 
+                       geom = "text", aes(label = seqnames), 
+                      vjust = 0, radius = 40, trackWidth = 1,
+                      size=3)
+
+# plot ChIP data
+p <- p + layout_circle(bp, 
+                       geom = "point",aes(x=start,y=score), radius = 30,
+                       trackWidth=8,
+                       color="red")
+
+# show plot
+p
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have transcription factor binding sites (ChIP-seq peaks) data determined by 
+ChIP-seq experiments in a file called 
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz". 
+I would like to find the distances to the nearest TSS from CpG islands using 
+CpG island data stored in "cpgi.hg19.chr21.bed" and plot them.
+How can I do this?
+
+completion:
+To find the distance to the nearest TSS from CpG islands in your ChIP-seq 
+experiment data, you can proceed as follows. 
+Read your ChIP.seq data file to get the peaks using readBroadPeak() 
+function from genomation package, read in your CpG island data using
+import.bed() function from rtracklayer package.
+Then to get the distance to the nearest TSS use distanceToNearest() function 
+from GenomicRanges package, and then plot the distances using hist() function. 
+
+```{r,eval=FALSE}
+
+require(genomation)
+require(GenomicRanges)
+require(rtracklayer)
+
+# read the peaks from the bed file
+pks <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+# read CpGi data set
+cpgi <- import.bed("cpgi.hg19.chr21.bed")
+
+# find distance to nearest TSS
+dists <- distanceToNearest(pks,cpgi,select="arbitrary")
+
+# histogram of the distances to nearest TSS
+dist2plot=mcols(dists)[,1]
+hist(log10(dist2plot),xlab="log10(dist to nearest TSS)",
+     main="Distances")
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have peaks data from two replicates in files
+"wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz" and "wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep2.broadPeak.gz".
+I would like to get the peaks that overlap (canonical peaks) on chr21.
+How do I do it?
+
+completion:
+To get the canonical peaks you can proceed as follows. 
+Read the peaks data file using readBroadPeak() function from genomation package.
+Then to get the overlapping peaks use findOverlaps() or subsetByOverlaps() 
+function for genomation package. After this subset the data for chr21. 
+
+```{r,eval=FALSE}
+
+require(genomation)
+
+# read the peaks from the bed file
+pks1 <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep1.broadPeak.gz")
+pks2 <- readBroadPeak("wgEncodeHaibTfbsGm12878Sp1Pcr1xPkRep2.broadPeak.gz")
+
+# get the peaks that overlap 
+overlap_all <- subsetByOverlaps(pks1,pks2)
+
+# get the peaks overlap for chr21
+overlap_ch21 <- GRanges(Rle("chr21", length(overlap_all)), 
+                        ranges(overlap_all, use.mcols=TRUE), 
+                        strand=strand(overlap_all))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have the reference transcript file "refseq.hg19.chr20.bed", and
+ChIP-seq enrichment data in files,
+"H1.ESC.H3K4me3.chr20.bw" and
+"H1.ESC.H3K27ac.chr20.bw".
+I would like to extract -500,+500 bp regions around the TSSes on chr20 and 
+then use the ChIP-seq data to create and visualize the average signal profiles
+for regions around TSSes as a line plot.
+How do I do it?
+
+completion:
+You can make use of genonation package for this as follows.
+Extract features from the reference sequence file using 
+readTranscriptFeatures() function, then get promotors from the the extracted 
+features. Create average signal profiles using ScoreMatrixList() function. 
+Then plot it using plotMeta() function to visualize the profiles.
+
+```{r,eval=FALSE}
+
+require(genomation)
+
+# get transcription start sites on chr20
+feat=readTranscriptFeatures("refseq.hg19.chr20.bed",
+                            remove.unusual = TRUE,
+                            up.flank = 500, down.flank = 500)
+
+# get promoters from the features
+prom=feat$promoters 
+
+#require(GenomicAlignments)
+# read file
+#h3k4 <- import("H1.ESC.H3K4me3.chr20.bw")
+#hek27 <- import("H1.ESC.H3K27ac.chr20.bw")
+
+# create scoring matrix list
+sml=ScoreMatrixList(c(H3K4me3="H1.ESC.H3K4me3.chr20.bw",
+                      H3K27ac="H1.ESC.H3K27ac.chr20.bw"),prom,
+                      type="bigWig",strand.aware = TRUE)
+
+# plot scoring matrix list
+plotMeta(sml)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have the reference transcript file "refseq.hg19.chr20.bed", and
+ChIP-seq enrichment data in files,
+"H1.ESC.H3K4me3.chr20.bw" and
+"H1.ESC.H3K27ac.chr20.bw".
+I would like to extract -500,+500 bp regions around the TSSes on chr20 and 
+then use the ChIP-seq data to create average signal profiles for regions 
+around TSSes and visualize it side by side as heatmaps for easy comparison. 
+How do I do it?
+
+completion:
+You can make use of genonation package for this as follows.
+Extract features from the reference sequence file using 
+readTranscriptFeatures() function, then get promotors from the the extracted 
+features. Create average signal profiles using ScoreMatrixList() function. 
+Then plot it using multiHeatMatrix() function to visualize the profiles 
+side by side.
+
+```{r,eval=FALSE}
+
+require(genomation)
+
+# get transcription start sites on chr20
+feat=readTranscriptFeatures("refseq.hg19.chr20.bed",
+                            remove.unusual = TRUE,
+                            up.flank = 500, down.flank = 500)
+
+# get promoters from the features
+prom=feat$promoters 
+
+# create scoring matrix list
+sml=ScoreMatrixList(c(H3K4me3="H1.ESC.H3K4me3.chr20.bw",
+                      H3K27ac="H1.ESC.H3K27ac.chr20.bw"),prom,
+                      type="bigWig",strand.aware = TRUE)
+
+# set seed
+set.seed(1029)
+# plot heat maps side by side
+multiHeatMatrix(sml,order=TRUE,xcoords = c(-500,500),
+                xlab="bases around TSS",winsorize = c(0,95),
+                matrix.main = c("H3K4me3","H3K27ac"),
+                column.scale=TRUE,
+                clustfun=function(x) kmeans(x, centers=3)$cluster)
+
+```
+
+--- TASK END

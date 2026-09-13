@@ -1,0 +1,785 @@
+---
+title: "prompt/completion pairs chapter 10"
+author: "authors"
+date: "2023-11-1"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a variable called `met_data` which is a GRanges object that
+holds information about methylation score in the extra metadata 
+column `score`, from chromosome 21 and 22. 
+I want to perform methylation segmentation analysis. 
+I want to test partitioning from 1 to 4 segments, and want to 
+investigate the methylation value per group and the length of the segment 
+as a scatter plot. How do I do this?
+
+completion:
+To perform methylation segmentation analysis on a GRanges object 
+and investigate the methylation value per group and length of 
+segments in a scatterplot, you can make use of the `methylKit` library in R. 
+You can partition the GRange object into different methylated segments using the 
+`methylKit::methSeg` function. Since we want to test a partitioning from 1 to 4 
+segments, we set `G=1:4`. To then investigate the methylation value and length of
+segments using a scatterplot, we plot the methylation proportion against the 
+log length of the segment. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#perform segmentation analysis
+res <- methylKit::methSeg(met_data,minSeg=10,G=1:4,
+                       join.neighbours = TRUE)
+
+#create plot
+plot(res$seg.mean,
+     log10(width(res)),pch=20,
+     col=scales::alpha(rainbow(4)[as.numeric(res$seg.group)], 0.2),
+     ylab="log10(length)",
+     xlab="methylation proportion")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a variable called `met_data` which is a GRanges object that
+holds information about methylation score in the extra metadata 
+column `score`, from chromosome 21 and 22. It also has another 
+metadata column which is irrelevant for the analysis called
+`extra_info`.I want to test partitioning 
+from 1 to 4 segments, and want to investigate the methylation value per 
+group and the length of the segment as a scatter plot.
+
+completion:
+To perform methylation segmentation analysis on a GRanges object 
+and investigate the methylation value per group and length of 
+segments in a scatterplot, you can make use of the `methylKit` library in R. 
+To ensure correct analysis, you first need to remove the metadata column
+`extra_info`. You can then partition the GRange object into different 
+methylated segments using the `methylKit::methSeg` function. Since we want 
+to test a partitioning from 1 to 4 segments, we set `G=1:4`. To then investigate 
+the methylation value and length of segments using a scatterplot, we plot the 
+methylation proportion against the log length of the segment. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# remove extra column
+met_data$extra_info <- NULL
+
+# perform segmentation analysis
+res <- methylKit::methSeg(met_data,minSeg=10,G=1:4,
+                       join.neighbours = TRUE)
+
+# create plot
+plot(res$seg.mean,
+     log10(width(res)),pch=20,
+     col=scales::alpha(rainbow(4)[as.numeric(res$seg.group)], 0.2),
+     ylab="log10(length)",
+     xlab="methylation proportion")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylRaw object called `met_data`. I want to plot the 
+methylation status. How do I do this?
+
+completion:
+To plot the methylation status of a methylRaw object,
+you can make use of the `methylKit` library. The function
+`getMethylationStats` allows you to plot the methylation
+status in a histogram. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+#Creating methylation status plot
+methylKit::getMethylationStats(met_data, plot=TRUE, both.strands=FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylRaw object called `met_data`. I want to plot a 
+coverage plot. How do I do this?
+
+completion:
+To plot the methylation status of a methylRaw object,
+you can make use of the `methylKit` library. The function
+`getCoverageStats` allows you to plot the methylation
+status in a histogram. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#Creating coverage plot
+methylKit::getCoverageStats(met_data, plot=TRUE, both.strands=FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylRaw object called `met_data`. I want to filter my data, 
+so that reads with very low coverage (below 10X),
+and reads with abnormally high coverage (that have more than 99.9th percentile 
+of coverage) are discarded. How do I do this?
+
+completion:
+To filter data in a methylRaw object so that reads
+with low coverage (below 10x) and high coverage 
+(over 99.9th percentile) are discarded, you can 
+make use of the `methylKit` library in R. The function
+`filterByCoverage` can be used to filter a methylRaw object
+by amount of coverage. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+#filtering the data
+filtered_data <- methylKit::filterByCoverage(met_data, lo.count=10, lo.perc=NULL,
+                                             hi.count=NULL, hi.perc=99.9)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylRaw object called `met_data`. I want to filter my data, 
+so that reads with very low coverage (below 10% of coverage),
+and reads with abnormally high coverage (that have more than 200x coverage) are 
+discarded. How do I do this?
+
+completion:
+To filter data in a methylRaw object so that reads
+with low coverage (below 10%) and high coverage 
+(more then 200x) are discarded, you can 
+make use of the `methylKit` library in R. The function
+`filterByCoverage` can be used to filter a methylRaw object
+by amount of coverage. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+#filtering the data
+filtered_data <- filterByCoverage(met_data, lo.count=NULL, lo.perc=10,
+                                  hi.count=200, hi.perc=NULL)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a methylRawList object with 4 methylRaw objects called 
+`data`. 2 objects are from control files, and 2 are from treatment 
+files. I would like to unite these methylRaw objects to 
+one dataframe which only holds bases which are covered in all
+all files. How do I do this?
+
+completion:
+To unite a methylRawList object with 4 methylRaw objects
+you can make use of the methylKit library in R. 
+To unite methylRaw objects ensuring that only bases
+which are covered in all files are kept, you can
+make use of the 'unite' function. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# unite data
+data_united <- methylKit::unite(data, destrand = FALSE, min.per.group = NULL)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a methylRawList object with 4 methylRaw objects called 
+`data`. 2 objects are from control files, and 2 are from treatment 
+files. I would like to unite these methylRaw objects to 
+one dataframe which only holds bases which are in least 1 
+file for each replicate.
+How do I do this?
+
+completion:
+To unite a methylRawList object with 4 methylRaw objects
+you can make use of the methylKit library in R. 
+To unite methylRaw objects ensuring that only bases
+which are covered in all files are kept, you can
+make use of the 'unite' function. By setting the
+argument `min.per.group = 1L` we ensure that bases 
+are kept which are at least in 1 file for 
+each replicate. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+# unite data
+data_united <- methylKit::unite(data, destrand = FALSE, min.per.group = 1L)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | Ml/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples. 
+I want to get the percent methylation matrix 
+for this. How do I do this?
+
+completion:
+To extract the percent methylation matrix
+from a methylBase object, you can make use
+of the methylKit library in R. The function 
+`percMethylation` allows you to extract
+the percent methylation matrix. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+# get percent methylation data
+pm <- methylKit::percMethylation(met_data)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples. 
+I want to get the standard deviation of CpGs 
+for this. I then want to plot a histogram of
+this. How do I do this?
+
+completion:
+To extract the standard deviation of CpGs
+from a methylBase object, you can make use
+of the methylKit library in R. The function 
+`percMethylation` allows you to extract
+the percent methylation matrix. You can then
+calculate the standard deviation of CpGs using
+the `rowSds` function. To plot
+a histogram of the percent methylation 
+matrix you can make use of the `hist`
+function in R. 
+
+```{r,eval=FALSE}
+require(methylKit)
+require(metrixStats)
+
+# get percent methylation data
+pm <- methylKit::percMethylation(met_data)
+
+# calculate standard deviation of CpGs
+mds <- matrixStats::rowSds(pm)
+
+# plot histogram
+hist(mds,col="#d98adb",xlab="Std. dev. (%) per CpG")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples. I 
+want to convert this object to a dataframe. How
+do I do this?
+
+completion:
+To convert a methylBase object to a dataframe 
+you can make use of the methylKit library in R. 
+The function `getData` allows you to convert
+the methylBase object to a dataframe. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# convert to dataframe
+df_met_data <- methylKit::getData(met_data)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples. I 
+want to filter out positions that lie on chr21 which 
+start and end at position 9853296 and 10000000 respectively. 
+How do I do this?
+
+completion:
+To filter out positions that lie on chr21 which 
+start and end at position 9853296 and 10000000 from a 
+methylBase object, you can make use of the GenomicRanges
+library in R. To filterout the positions that lie on chr21 
+which start and end at position  9853296 and 10000000 you can 
+make use of a GRanges object, and find the indices which
+do not overlap with this object.  
+
+```{r,eval=FALSE}
+require (GenomicRanges)
+
+# positions to be deleted as GRanges object
+del <- GenomicRanges::GRanges(seqnames=c("chr21"),
+                              ranges=IRanges(start=c(9853296),
+                                             end=c(10000000)))
+
+
+# select data that does not overlap with GRanges object
+data_filtered <- met_data[!as(met_data,"GRanges") %over% del, ]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+I want to see if the results from the test files and the 
+control files cluster together, as a way of looking at how 
+similar they are. How do I do this?
+
+completion:
+To cluster a methylBase object you can make use of the
+methylKit library in R. The function `methylkit::ClusterSamples` 
+will cluster the samples and draw a dendrogram. It will use 
+correlation distance, which is 1-p where p is the correlation 
+coefficient between two pairs of samples. The cluster tree 
+will be drawn using the “ward” method. This specific variant 
+uses a “bottom up” approach: each data point starts in its own 
+cluster, and pairs of clusters are merged as one moves up the 
+hierarchy. In Ward's method, two clusters are merged if the variance 
+is minimized compared to other possible merge operations.
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#Cluster samples and show dendogram
+methylKit::clusterSamples(met_data, dist="correlation", method="ward", plot=TRUE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+I want to perform PCA and visualize the results 
+in a scatterplot. How do I do this?
+
+completion:
+To perform PCA on a methylBase object,
+you can make use of the methylKit library in R. 
+The function `PCASamples`. Alternatively, you could 
+extract the percent methylation matrix and perform PCA 
+on this transposed matrix using the `prcomp` function. 
+Using the `methylKit::PCASamples` function 
+however filters low variation regions before PCA analysis 
+automatically, which might be beneficial when performing 
+further methylation analysis. Below is an example on how to 
+use both methods. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+# perform PCA using methylKit function
+# automatically will plot scatterplot
+pca_mk <- methylKit::PCASamples(met_data,obj.return = TRUE, adj.lim=c(1,1))
+
+# perform PCA using prcomp
+# get percent methylation data
+pm <- methylKit::percMethylation(met_data)
+
+# perform PCA. Here, rows with NA are removed from the percent metylation matrix. 
+pca_pr <- prcomp (na.omit(pm))
+mat <- as.matrix(pca_pr$rotation)
+
+# plot scatterplot using first 2 dimensions
+# and annotate
+plot (mat[, 1:2])
+text(x = mat[, 1], y = (mat[,2]+0.01), labels = rownames(mat))
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+There are 2 test samples and 2 control samples
+in this object.
+I want to see if there are any differentially methylated 
+regions when comparing the results from the test 
+samples to the control samples. For this purpose,
+I want to perform a fishers exact test. I want the control 
+and test samples to have at least a methylation 
+difference of 25% before they are called significantly different, 
+and I also want the cutoff for the q-value to be 0.01.
+
+completion:
+To perform a fishers exact test on a methylBase object
+to find differentially methylated regions, you can make
+use of the methylKit library in R.
+In simple comparisons between pairs of samples (i.e. test and control), 
+methods such as Fisher's exact test can be used. 
+Since you mentioned there are 2 test samples and 2 control samples
+in your methylBase object, replicates should be pooled within groups 
+to a single sample per group. This entails adding up the number of 
+Cs and Ts per group. You can do this using the 
+`methylKit::pool` function. This way even if you have replicated experiments 
+you treat them as single experiments, and can apply Fisher's exact test. 
+You can then apply the `methylKit::calculateDiffMeth()` function, which 
+will return the p-value and q-values for all bases or regions in the input 
+methylBase object. Filtering to get differentially methylated CpGs. 
+can be done via the `methylKit::getMethlyDiff()` function
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#pool data for differential methylation analysis
+pooled_data <- pool(met_data,sample.ids=c("test","control"))
+
+#perform fishers exact test for each base:
+res <- calculateDiffMeth(pooled_data, test= "fast.fisher")
+
+#get differentially methylated positions:
+all_diff <- getMethylDiff(res,difference=25,qvalue=0.01,type="all")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+There are 2 test samples and 2 control samples
+in this object.
+I want to see if there are any differentially methylated 
+regions when comparing the results from the test 
+samples to the control samples. For this purpose,
+I want to use the logistic regression based Chi-square test 
+with correction for overdispertion. How do I do this?
+
+completion:
+To perform the regression based Chi-square 
+test with correction for overdispersion, we can make use of the 
+`methylKit::calculateDiffMeth` function. This will report back, 
+the p-value, q-value and methylation difference for further analysis.
+
+```{r,eval=FALSE}
+require(methylKit)
+
+#perform Chi-square test with overdispersion correction
+res <- calculateDiffMeth(met_data,overdispersion = "MN",test = "Chisq")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylDiff object called `res`. This object 
+holds the results from using the function
+`methylKit::calculateDiffMeth` using
+logistic regression based Chi-square test 
+with correction for overdispertion.
+How do I filter out the positions 
+which are differentially methylated?
+I consider somehting differentially 
+methylated if the q-value is below 0.05 and
+the difference in percentage is at least 25%.
+
+completion:
+To filter out the positions which are differentially 
+methylated from a methylDiff object you can make 
+use of the methylKit library in R. The function
+`getMethylDiff` allows you to filter out positions
+where he q-value is below 0.05 and
+the difference in percentage is at least 25% 
+by setting the `qvalue` and `difference` argument. 
+
+```{r,eval=FALSE}
+require(methylKit)
+
+# get differentially methylated positions:
+all_diff <- getMethylDiff(res,difference=25,qvalue=0.05,type="all")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+There are 2 test samples and 2 control samples
+in this object.
+I want to see if there are any differentially methylated 
+regions when comparing the results from the test 
+samples to the control samples. For this purpose,
+I want to use a Betabinomial-distribution-based test 
+namely DSS.  How do I do this?
+
+completion:
+To perform DSS on a methylBase object, you can make
+use of the methylKit library in R. The function
+`calculateDiffMethDSS` can be used for this purpose. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+#perform Betabinomial-distribution-based test DSS.
+res <- calculateDiffMethDSS(met_data)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylBase object called `met_data`. This holds
+methylation information from different samples.
+There are 2 test samples and 2 control samples
+in this object.
+The age of the first sample in the object is 30. The others have an age of 80,
+34 and 75 respectively. I want to include this covariate in my test to see if 
+there are any differentially methylated regions when comparing the results 
+from the test samples to the control samples. For this, I want to use the 
+logistic regression based Chi-square test with correction for overdispertion. 
+How do I do this?
+
+completion:
+To include the covariate age, we make a dataframe out of the age 
+information. We then pass this to the `methylKit::calculateDiffMeth` function 
+using the `covariates = covariates` argument. 
+
+```{r,eval=FALSE}
+require (methylKit)
+
+#define covariate age for all objects
+covariates <- data.frame(age=c(30,80,34,75))
+
+#perform Chi-square test with correction for overdispersion
+res <- calculateDiffMeth(met_data,
+                         covariates=covariates,
+                         overdispersion="MN",
+                         test="Chisq")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I want to retrieve ENSEMBL information on the genomic annotation
+such as intron, exon, or gene in the human genome 
+using a GRCh38.92 assembly. I want to retrieve a GRanges object so that
+I can use this for annotation. How do I do this?
+
+completion:
+To retrieve ENSEMBL information on genomic annotation, we can make
+use of the `AnnotationHub` library. Here we look for the following keywords:
+- ENSEMBL to retrieve the ENSEMBL information
+- "Homo" to retrieve the information of homo sapiens
+- "GRCh38.92" to retrieve the correct version
+- and "chr.gtf" to grab the correct file 
+From this we retrieve the correct entry for the annotationhub,
+which we can use to extract the human annotation information. 
+
+```{r,eval=FALSE}
+require(AnnotationHub)
+
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylDiff object called `res`. This object 
+holds the results from using the function
+`methylKit::calculateDiffMeth` using
+logistic regression based Chi-square test 
+with correction for overdispertion.
+How do I filter out the positions 
+which are differentially methylated?
+I consider somehting differentially 
+methylated if the q-value is below 0.05 and
+the difference in percentage is at least 25%.
+I then want to annotate the differentially methylated
+positions to see if they fall within intronic or 
+exonic regions etc using info from ENSEMBL using 
+the GRCh38.92 version. How do I do this?
+
+completion:
+To filter out the positions which are differentially 
+methylated from a methylDiff object you can make 
+use of the methylKit library in R. The function
+`getMethylDiff` allows you to filter out positions
+where he q-value is below 0.05 and
+the difference in percentage is at least 25% 
+by setting the `qvalue` and `difference` argument. 
+To annotate the differentially methylated positions, you can 
+make use of the`AnnotationHub` library. 
+Connecting to the annotation hub allows you to retrieve genomic 
+information from the GRCh38.92 genome annotation from ENSEMBL.This 
+is used to find overlaps between the ENSEMLS information 
+and differentially methylated positions `GenomicAlignments::findOverlaps` 
+function. Annotation is done using the `type` column from the human 
+information retrieved from ENSEMBL. 
+
+```{r,eval=FALSE}
+require(methylKit)
+require(AnnotationHub)
+require(GenomicAlignments)
+
+# get differentially methylated positions:
+all_diff <- getMethylDiff(res,difference=25,qvalue=0.05,type="all")
+
+# convert to GRanges object
+diff_gr <- as(all_diff,"GRanges")
+
+# get human genome information with intron exon annotation
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+# fix chromosome names so they fit UCSC naming and
+# keep only chromosome 21
+seqlevels(hum_inf, pruning.mode="coarse") <- paste0("chr", seqlevels(hum_inf))
+seqlevels(hum_inf,pruning.mode="coarse") <- "chr21"
+hum_inf <- hum_inf[seqnames(hum_inf) == "chr21"]
+
+# find overlaps
+overlap <- as.data.frame(GenomicAlignments::findOverlaps(diff_gr,hum_inf))
+
+# annotate using overlapping info
+overlap$annotation <- hum_inf$type[overlap$subjectHits]
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have methylation information of chromosome 21
+in a methylDiff object called `res`. This object 
+holds the results from using the function
+`methylKit::calculateDiffMeth` using
+logistic regression based Chi-square test 
+with correction for overdispertion.
+How do I filter out the positions 
+which are differentially methylated?
+I consider somehting differentially 
+methylated if the q-value is below 0.05 and
+the difference in percentage is at least 25%.
+I then want to annotate the differentially methylated
+positions seeing in which genes these regions fall. 
+How do I do this?
+
+completion:
+To filter out the positions which are differentially 
+methylated from a methylDiff object you can make 
+use of the methylKit library in R. The function
+`getMethylDiff` allows you to filter out positions
+where he q-value is below 0.05 and
+the difference in percentage is at least 25% 
+by setting the `qvalue` and `difference` argument. 
+To annotate in which genes the differentially methylated positions 
+are, you can make use of the`AnnotationHub` library. 
+Connecting to the annotation hub allows you to retrieve genomic 
+information from the GRCh38.92 genome annotation from ENSEMBL.This 
+is used to find overlaps between the ENSEMLS information 
+and differentially methylated positions `GenomicAlignments::findOverlaps` 
+function. Annotation is done using the `gene_name` column from the human 
+information retrieved from ENSEMBL.
+
+```{r,rval=FALSE}
+require(methylKit)
+require(AnnotationHub)
+require(GenomicAlignments)
+
+# get differentially methylated positions:
+all_diff <- getMethylDiff(res,difference=25,qvalue=0.05,type="all")
+
+# convert to GRanges object
+diff_gr <- as(all_diff,"GRanges")
+
+# get human genome information with intron exon annotation
+# connect to annotation hub
+ah <- AnnotationHub()
+
+# get homo sapiens info. 
+hs <- query(ah, pattern=c("ENSEMBL", "Homo", "GRCh38.92", "chr.gtf"))
+hum_inf <- ah[[rownames(mcols(hs)[1])]]
+
+# fix chromosome names so they fit UCSC naming and
+# keep only chromosome 21
+seqlevels(hum_inf, pruning.mode="coarse") <- paste0("chr", seqlevels(hum_inf))
+seqlevels(hum_inf) <- "chr21"
+hum_inf <- hum_inf[seqnames(hum_inf) == "chr21"]
+
+# find overlaps
+overlap <- as.data.frame(GenomicAlignments::findOverlaps(diff_gr,hum_inf))
+
+overlap$gene_name <- hum_inf$gene_name[overlap$subjectHits]
+```
+
+--- TASK END

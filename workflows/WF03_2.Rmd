@@ -1,0 +1,230 @@
+---
+title: "prompt/completion pairs chapter 3"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stat | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data frame of 100 rows and 6 columns with the following structure called 'data'. 
+
+```{r}
+    [,1]     [,2]     [,3]     [,4]     [,5]     [,6]
+[1,] 295.0368 198.0631 306.7758 259.3416 265.7973 131.3946
+[2,] 117.8228 256.6800 325.0575 111.3225 271.2894 207.0569
+[3,] 307.3622 220.4294 162.1763 227.7250 202.3732 114.8394
+```
+  
+How could I calculate the means and variances of the rows of the following data set, and plot the distributions of means
+and variances using `hist()` and `boxplot()` functions?
+How can I calculate the standard deviation of the distribution of the means using the `sd()` function?
+How can I compare that to the expected standard error obtained from the central limit theorem keeping in mind the
+population parameters were `σ = 70` and `n = 6`? How does the standard deviation of the means of the rows change when we
+simulate more data with different number of samples and/or different number of observations?
+
+completion:
+Assuming that your data frame is consisted of numerical values we can calculate the means and variances of the rows
+using `rowMeans()` and `rowVars()` and plot the distributions with `hist()` and `boxplot()`. 
+To calculate the standard deviation of the distribution of the means, we will use the `sd()` function, and compare
+that to the expected standard error calculated with the formula `SE = σ / √n`. 
+Then we will test the changes in the estimated standard error in case of 6000 observations with the sample size of
+6 (data1), 6000 observations with the sample size of 10 (data2), and 600 observations with the sample size of 10
+(data3).
+
+```{r,eval=FALSE}
+
+# load the library matrixStats
+require(matrixStats)
+
+# Calculate the means of the rows
+means <- rowMeans(data)
+# Calculate the variances of the rows
+vars <- rowVars(data)
+
+# Plot the means and variances with histogram
+hist(means)
+hist(vars) 
+
+# Plot the means and variances with boxplot
+boxplot(means)
+boxplot(vars)
+
+# Calculate the standard deviation of the distribution of the means
+samples <- sd(means) # 28.079
+
+# Expected standard error from population parameters: SE = σ / √n
+clt.se <- 70/sqrt(6) # 28.577
+
+
+# Generate data with same mean and sd, same number of samples, but 10 times of observation.
+data1 <- matrix(rnorm(6000,mean=200,sd=70),ncol=6)
+# Calculate the standard deviation of the means of the rows
+sd(rowMeans(data1)) # 27.813
+
+# Generate data with same mean and sd, number of samples = 10, 10 times of observation.
+data2 <- matrix(rnorm(6000,mean=200,sd=70),ncol=10)
+# Calculate the standard deviation of the means of the rows
+sd(rowMeans(data2)) # 21.358
+
+# Generate data with same mean and sd, number of samples = 10, same number of observation.
+data3 <- matrix(rnorm(600,mean=200,sd=70),ncol=10)
+# Calculate the standard deviation of the means of the rows
+sd(rowMeans(data3)) # 22.055
+
+# We can see that the standard deviation of the distribution of the means are very close to the expected standard error.
+# The estimate of the standard error does not change much when the number of observation increases,
+# it will only decrease if we sample more data points per set (increase number of samples).
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stat | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a vector of 30 numerical values, which represent the observation for 30 variables, called 'pois1'.
+I also have a vector with 1000 numerical values, called 'sample_means' which is the means of the observed values of these 30 variables.
+I want to plot the sampling distributions of the means using a histogram and get the 2.5th and 97.5th percentiles
+of the distribution. How can I complete these task?
+I also want to calculate confidence intervals of the mean of "pois1" with `t.test()` function.
+Then I want to use the bootstrap confidence interval for the mean on "pois1" and compare the interval with the
+theoretical confidence interval of the mean from the `t.test()`.
+
+completion:
+To calculate the 2.5th and 97.5th percentiles of the distribution, we will first load the package `mosaic`
+and use function `quantile()` for `sample_mean` with 2.5th and 97.5th percentages.
+We will also plot the distribution using `hist()` on `sample_mean`.
+We will use `t.test()` on `pois1` to find out the confidence interval.
+Then we will use the bootstrap confidence interval for the mean on `pois1` and compare those values with the
+theoretical values from the `t.test()`.
+
+
+```{r,eval=FALSE} 
+
+# Load the mosaic package
+require(mosaic)
+
+# Calculate the 2.5th and 97.5th percentiles of the distribution
+quantile(sample_means,probs=c(0.025,0.975))
+
+# Plot the histogram for sample_means
+hist(sample_means)
+
+# Do t-test on pois1 and calculate confidence intervals
+t.test(pois1)
+
+# Use the bootstrap confidence interval for the mean on `pois1`.
+quantile((do(1000)*mean(sample(pois1,30,replace=T)))[,1],probs=c(0.025,0.975))
+ 
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stat | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 vectors called `gene1` and `gene2`.
+Each vector has 30 numeric values, which represent gene expression values obtained under different conditions.
+How can I test the difference of means of the `gene1` and `gene2` using the randomization, `t.test()` and
+`wilcox.test()` functions? I also want to plot the distribution with randomization using histogram.
+
+completion:
+We will do the randomization with the following process. First, we will calculate the differences in the means and
+do the randomization procedure to get a null distribution when we assume there is no difference between samples,H0.
+We then calculate how often we would get the original difference under the assumption that H0 is true.
+Then we can do the t-test and wilcox-test easily by using `t.test()` and `wilcox.test()` functions.
+Lastly, we will plot the distribution of the means by randomization using histogram.
+
+
+```{r,eval=FALSE} 
+
+# Randomization-based testing
+# Calculate the original differences in the means
+org.diff <- mean(gene1)-mean(gene2)
+
+# Make gene1 and gene2 into one data frame, with gene1 marked as test and gene2 marked as control group.
+gene.df <- data.frame(exp=c(gene1,gene2),
+                  group=c( rep("test",30),rep("control",30) ) )
+
+# Do the randomization process to get a null distribution when we assume there is no difference between samples (H0).
+exp.null <- do(1000) * diff(mosaic::mean(exp ~ shuffle(group), data=gene.df))
+
+# Calculate how often we would get the original difference under the assumption that H0 is true
+sum(exp.null>org.diff)/1000
+
+# Do t-test on gene1 and gene2
+t.test(gene1,gene2)
+
+# Do wilcox-test on gene1 and gene2
+wilcox.test(gene1,gene2)
+
+# Plot the histogram with the null distribution
+hist(exp.null[,1], xlab = "null distribution | No difference in samples",
+     main = expression(paste(H[0], " :no difference in means")),
+     xlim = c(-2,2), col = "lightpink", border = "white")
+
+# Draw a line at the 95th percentile of null distribution.
+abline(v=quantile(exp.null[,1],0.95),col="red" )
+text(x=quantile(exp.null[,1],0.95),y=250,"0.05",adj=c(1,0),col="red")
+
+# Draw a line at the point of original difference of the means
+abline(v=org.diff,col="blue" )
+text(x=org.diff,y=200,"org. diff.",adj=c(1,0),col="blue")
+
+```
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stat | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 50 numerical values in a vector called 'x', which represents the histone modification score and is between 1 and 100. 
+I also have a vector 'y' which has 50 numerical values and represent gene expression values.
+How can I fit a line to predict Y based on X? I also want to plot the scatter plot and the fitted line.
+How can I calculate the correlation and R^2 and run the `summary()` function and extract P-values from there?
+I want to plot the residuals vs. the fitted values plot, how do I do that?
+
+completion:
+To fit a line to predict y, we can simply use `lm()` function. To create a scatterplot and add the fitted line,
+we can first use `plot()` which plots the points, and add `abline()` which draws a line of a given linear model.
+To calculate the correlation we will use `cor()` which gives pearson correlation, and R^2 can be easily calculated
+by doing `cor()^2`. We can use `summary()` function on the model we created by `lm()` and extract the p values by
+pointing to the column that gives out p-values.
+To plot the residuals vs. the fitted values, we can call the `plot()` function with the model returned by `lm()` as
+the first argument, and `which=1` as the second argument. 
+
+
+```{r,eval=FALSE}  
+
+# Use lm function to fit a line
+mod <- lm(y~x)
+
+# Plot the data points
+plot(x,y)
+# Draw the fitted line of the model
+abline(mod)
+
+# Calculate the correlation between x and y with pearson method (default)
+cor(x,y)
+# R squared
+cor(x,y)^2 
+
+# Use the summary function
+lm_summary <- summary(mod)
+lm_summary
+
+# Extract the p-value by pointing at the second row of "Coefficients:", column of "Pr(>|t|)"
+lm_summary$coefficients[2, "Pr(>|t|)"]
+
+# Call the plot() function with the model as the first argument, and which=1 as the second argument
+plot(mod,which=1)
+ 
+```
+--- TASK END
+

@@ -1,0 +1,1213 @@
+---
+title: "prompt/completion pairs chapter 5"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.rds", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.rds", which indicates whether the patient has CIMP(CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to remove near zero
+variation for the columns at least 85% of the values are the same, then take the top 1000 variable predictors, center the
+data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these two files to create a table?
+
+I want to run the k-NN classifier on the data. What is the effect on classification accuracy for k-NN predicting the CIMP
+and noCIMP status of the patient? Then I want to use bootstrap resampling with k-NN for the prediction accuracy. How
+different is it from cross-validation for different ks? There are a number of ways to get variable importance for a
+classification problem. I want to use random forests on the classification problem. How do I plot the top 10 important
+variables based on permutation-based method for the random forest classification? How do I normalize the importance
+scores obtained by the random forest method?
+
+completion:
+The data set must be read first. We will use `readRDS()` function to read the rds file. Then we will start the
+preprocessing of the gene expression data with taking a log to tame the extreme values and add 1 pseudocount to deal with
+0 values. Then, before doing other tasks we need to transpose our gene expression data, since our gene expression data
+are on the row side, and we need to put it on the column side to use machine learning algorithms. Then we will load the
+`caret` library to do the filtering. First we will create a filter with `preProcess()` function and apply it to remove
+near zero variation for the columns at least 85% of the values are the same. Then we will choose to take the top 1000
+variable predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+Now to go through knn-classifier, bootstrap resampling and random forest method, we will first split the data set with
+`caret::createPartition()` function. We will get indices for the 70 % of the data set and separate test and training sets
+using the indices (70 % for training and 30 % for test).
+
+To run the k-NN algorithm, we will use the `caret::knn3()` function with k = 5. To test the training set accuracy, we
+will get the predictions on the training set using `predict()` and compare the predicted to real by
+`caret::confusionMatrix()`. For the test set accuracy we will do the same for the testing set.
+
+Next we will run the bootstrap resampling by using `trainControl()` function with method as "boot". Then we will train
+the k-NN model with `train()` function with method as "knn". To compare that with cross validation we will repeat the
+process, this time `trainControl()` function with method as "cv". 
+
+For the random forest model, we will train it with `train()` function with method as "ranger" and indicate the importance
+as "permutation" to calculate the importance. Variable importance can be calculated by `caret::varImp()` function. We can
+plot the top 10 important variables using `plot()`. We can normalize the importance scores by applying a function that
+does (x - min(x)) / (max(x) - min(x)) to all importance scores.
+
+```{r,eval=FALSE}  
+
+# read gene expression data set from glioblastoma patients
+gexp <- readRDS("LGGrnaseq.rds")
+
+# read patient annotation data set from glioblastoma patients
+patient <- readRDS("patient2LGGsubtypes.rds")
+
+# 1. Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Create a filter to remove near zero variation for the columns at least 85% of the values are the same
+nzv <- preProcess(tgexp,method="nzv",uniqueCut = 15)
+# apply the filter using "predict" function
+# return the filtered dataset and assign it to nzv_tgexp
+nzv_tgexp <- predict(nzv,tgexp)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+# 2. k-NN classifier on the data ----------
+
+# get indices for 70% of the data set
+intrain <- createDataPartition(y = data[,1], p= 0.7)[[1]]
+
+# seperate test and training sets
+training <- data[intrain,]
+testing <- data[-intrain,]
+
+set.seed(123)
+# Run k-NN classifier
+knnFit <- knn3(x=training[,-1], # training set
+              y=as.factor(training[,1]), # training set class labels
+              k=5)
+
+# predictions on the training set
+trainPred <- predict(knnFit,training[,-1],type="class")
+
+# compare the predicted labels to real labels
+# get different performance metrics
+confusionMatrix(data=as.factor(training[,1]),reference=trainPred)
+
+# predictions on the test set, return class labels
+testPred <- predict(knnFit,testing[,-1],type="class")
+
+# compare the predicted labels to real labels
+# get different performance metrics
+confusionMatrix(data=as.factor(testing[,1]),reference=testPred)
+
+# 3. Bootstrap resampling with k-NN for the prediction accuracy----------------
+
+set.seed(123)
+
+# train control with bootstrap
+trctrl <- trainControl(method = "boot",number=20, returnResamp = "all")
+
+# Train k-NN model
+knn_fit <- train(subtype ~., data = training, 
+                 method = "knn",
+                 trControl=trctrl,
+                 tuneGrid = data.frame(k=1:12)
+                 )
+
+# best k value
+knn_fit$bestTune 
+
+# plot k vs prediction error
+plot(x=1:12,1-knn_fit$results[,2],pch=19,
+     ylab="prediction error",xlab="k")
+lines(loess.smooth(x=1:12,1-knn_fit$results[,2],degree=2),
+      col="#CC0000")
+
+# How different is it from cross-validation for different ks?
+
+set.seed(123)
+
+# Cross validation method
+trctrl_cv <- trainControl(method = "cv",number=10)
+
+# we will now train k-NN model
+knn_fit_cv <- train(subtype~., data = training, 
+                 method = "knn",
+                 trControl=trctrl_cv,
+                 tuneGrid = data.frame(k=1:12))
+
+# best k value by cross-validation accuracy
+knn_fit_cv$bestTune
+
+# plot k vs prediction error
+plot(x=1:12,1-knn_fit_cv$results[,2],pch=19,
+     ylab="prediction error",xlab="k")
+lines(loess.smooth(x=1:12,1-knn_fit_cv$results[,2],degree=2),
+      col="green")
+
+
+# 4. Run random forests ---------------------
+
+set.seed(123)
+
+# we will now train random forest model
+rfFit <- train(subtype~., 
+               data = data, 
+               method = "ranger",
+               trControl= trainControl(method = "none"),
+               importance="permutation", # calculate importance
+               tuneGrid = data.frame(mtry=100,
+                                     min.node.size = 1,
+                                     splitrule="gini")
+)
+# print OOB error
+rfFit$finalModel$prediction.error
+
+# Variable Importance
+varImp(rfFit)
+plot(varImp(rfFit),top=10)
+
+# Extract the top 10 variables from both results
+top_10_rfFit <- row.names(varImp(rfFit))[1:10]
+
+
+# Normalize the importance scores from random forests
+# Compute importance scores using Random Forests (rfFit)
+importance_rf <- varImp(rfFit)
+
+# Normalizing function
+normalize <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+# Normalize the importance scores to a range between 0 and 1
+normalized_importance_rf <- normalize(importance_rf$importance)
+
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling , numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.rds", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.rds", which indicates whether the patient has CIMP(CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to remove near zero
+variation for the columns at least 85% of the values are the same, then take the top 1000 variable predictors, center the
+data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these two files to create a table?
+
+completion:
+The data set must be read first. We will use `readRDS()` function to read the rds file. Then we will start the
+preprocessing of the gene expression data with taking a log to tame the extreme values and add 1 pseudocount to deal with
+0 values. Then, before doing other tasks we need to transpose our gene expression data, since our gene expression data
+are on the row side, and we need to put it on the column side to use machine learning algorithms. Then we will load the
+`caret` library to do the filtering. First we will create a filter with `preProcess()` function and apply it to remove
+near zero variation for the columns at least 85% of the values are the same. Then we will choose to take the top 1000
+variable predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+```{r,eval=FALSE}  
+
+# read gene expression data set from glioblastoma patients
+gexp <- readRDS("LGGrnaseq.rds")
+
+# read patient annotation data set from glioblastoma patients
+patient <- readRDS("patient2LGGsubtypes.rds")
+
+# Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Create a filter to remove near zero variation for the columns at least 85% of the values are the same
+nzv <- preProcess(tgexp,method="nzv",uniqueCut = 15)
+# apply the filter using "predict" function
+# return the filtered dataset and assign it to nzv_tgexp
+nzv_tgexp <- predict(nzv,tgexp)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling , numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.txt", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.txt", which indicates whether the patient has CIMP (CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to take the top 1000
+variable predictors, center the data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these
+two files to create a table?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will start the preprocessing of the gene expression data with taking a log to tame the extreme values and
+add 1 pseudocount to deal with 0 values. Then, before doing other tasks we need to transpose our gene expression data,
+since our gene expression data are on the row side, and we need to put it on the column side to use machine learning
+algorithms. Then we will load the `caret` library to do the filtering. We will choose to take the top 1000 variable
+predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+```{r,eval=FALSE}  
+
+# read gene expression data set from glioblastoma patients
+gexp <- data.table::fread("LGGrnaseq.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(gexp) <- gexp[,1]
+gexp <- gexp[,-1]
+
+# read patient annotation data set from glioblastoma patients
+patient <- data.table::fread("patient2LGGsubtypes.txt", data.table = FALSE)
+
+# Push the patient ID from the first column to the row names and delete the first column
+rownames(patient) <- patient[,1]
+patient <- subset(patient, select = -1)
+
+# Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.txt", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.txt", which indicates whether the patient has CIMP (CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to take the top 1000
+variable predictors, center the data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these
+two files to create a table?
+
+I want to run the k-NN classifier on the data. What is the effect on classification accuracy for k-NN predicting the CIMP
+and noCIMP status of the patient?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will start the preprocessing of the gene expression data with taking a log to tame the extreme values and
+add 1 pseudocount to deal with 0 values. Then, before doing other tasks we need to transpose our gene expression data,
+since our gene expression data are on the row side, and we need to put it on the column side to use machine learning
+algorithms. Then we will load the `caret` library to do the filtering. We will choose to take the top 1000 variable
+predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+Now to go through knn-classifier, we will first split the data set with `caret::createPartition()` function. We will get
+indices for the 70 % of the data set and separate test and training sets using the indices (70 % for training and 30 %
+for test).
+
+To run the k-NN algorithm, we will use the `caret::knn3()` function with k = 5. To test the training set accuracy, we
+will get the predictions on the training set using `predict()` and compare the predicted to real by
+`caret::confusionMatrix()`. For the test set accuracy we will do the same for the testing set.
+
+```{r,eval=FALSE}  
+
+# 0. Data Read-------------------------------------------------------------------
+
+# read gene expression data set from glioblastoma patients
+gexp <- data.table::fread("LGGrnaseq.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(gexp) <- gexp[,1]
+gexp <- gexp[,-1]
+
+# read patient annotation data set from glioblastoma patients
+patient <- data.table::fread("patient2LGGsubtypes.txt", data.table = FALSE)
+
+# Push the patient ID from the first column to the row names and delete the first column
+rownames(patient) <- patient[,1]
+patient <- subset(patient, select = -1)
+
+# 1. Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+# 2. k-NN classifier on the data ----------
+
+# get indices for 70% of the data set
+intrain <- createDataPartition(y = data[,1], p= 0.7)[[1]]
+
+# seperate test and training sets
+training <- data[intrain,]
+testing <- data[-intrain,]
+
+set.seed(123)
+# Run k-NN classifier
+knnFit <- knn3(x=training[,-1], # training set
+              y=as.factor(training[,1]), # training set class labels
+              k=5)
+
+# predictions on the training set
+trainPred <- predict(knnFit,training[,-1],type="class")
+
+# compare the predicted labels to real labels
+# get different performance metrics
+confusionMatrix(data=as.factor(training[,1]),reference=trainPred)
+
+# predictions on the test set, return class labels
+testPred <- predict(knnFit,testing[,-1],type="class")
+
+# compare the predicted labels to real labels
+# get different performance metrics
+confusionMatrix(data=as.factor(testing[,1]),reference=testPred)
+
+```
+
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.txt", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.txt", which indicates whether the patient has CIMP (CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to take the top 1000
+variable predictors, center the data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these
+two files to create a table? I want to use bootstrap resampling with k-NN for the prediction accuracy. How different is
+it from cross-validation for different ks? 
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will start the preprocessing of the gene expression data with taking a log to tame the extreme values and
+add 1 pseudocount to deal with 0 values. Then, before doing other tasks we need to transpose our gene expression data,
+since our gene expression data are on the row side, and we need to put it on the column side to use machine learning
+algorithms. Then we will load the `caret` library to do the filtering. We will choose to take the top 1000 variable
+predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+We will first split the data set with `caret::createPartition()` function. We will get indices for the 70 % of the data
+set and separate test and training sets using the indices (70 % for training and 30 % for test). Next we will run the
+bootstrap resampling by using `trainControl()` function with method as "boot". Then we will train the k-NN model with
+`train()` function with method as "knn". To compare that with cross validation we will repeat the process, this time
+`trainControl()` function with method as "cv". 
+
+
+```{r,eval=FALSE}  
+
+# 0. Data Read-------------------------------------------------------------------
+
+# read gene expression data set from glioblastoma patients
+gexp <- data.table::fread("LGGrnaseq.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(gexp) <- gexp[,1]
+gexp <- gexp[,-1]
+
+# read patient annotation data set from glioblastoma patients
+patient <- data.table::fread("patient2LGGsubtypes.txt", data.table = FALSE)
+
+# Push the patient ID from the first column to the row names and delete the first column
+rownames(patient) <- patient[,1]
+patient <- subset(patient, select = -1)
+
+# 1. Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+# get indices for 70% of the data set
+intrain <- createDataPartition(y = data[,1], p= 0.7)[[1]]
+
+# seperate test and training sets
+training <- data[intrain,]
+testing <- data[-intrain,]
+
+
+# 2. Bootstrap resampling with k-NN for the prediction accuracy----------------
+
+set.seed(123)
+
+# train control with bootstrap
+trctrl <- trainControl(method = "boot",number=20, returnResamp = "all")
+
+# Train k-NN model
+knn_fit <- train(subtype ~., data = training, 
+                 method = "knn",
+                 trControl=trctrl,
+                 tuneGrid = data.frame(k=1:12)
+                 )
+
+# best k value
+knn_fit$bestTune 
+
+# plot k vs prediction error
+plot(x=1:12,1-knn_fit$results[,2],pch=19,
+     ylab="prediction error",xlab="k")
+lines(loess.smooth(x=1:12,1-knn_fit$results[,2],degree=2),
+      col="#CC0000")
+
+# How different is it from cross-validation for different ks?
+
+set.seed(123)
+
+# Cross validation method
+trctrl_cv <- trainControl(method = "cv",number=10)
+
+# we will now train k-NN model
+knn_fit_cv <- train(subtype~., data = training, 
+                 method = "knn",
+                 trControl=trctrl_cv,
+                 tuneGrid = data.frame(k=1:12))
+
+# best k value by cross-validation accuracy
+knn_fit_cv$bestTune
+
+# plot k vs prediction error
+plot(x=1:12,1-knn_fit_cv$results[,2],pch=19,
+     ylab="prediction error",xlab="k")
+lines(loess.smooth(x=1:12,1-knn_fit_cv$results[,2],degree=2),
+      col="green")
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have 2 data sets. One is the gene expression data of glioblastoma tumor samples, called "LGGrnaseq.txt", in which the
+columns are individual patients and the rows are the gene expressions. The other set is the patient annotation data from
+the glioblastoma patient, called "patient2LGGsubtypes.txt", which indicates whether the patient has CIMP (CpG island
+methylator phenotype) or noCIMP subtype. Here is the row individual patients and the column indicates the CIMP existence.
+
+I first want to preprocess the data by taking the log and filtering the data. By filtering, I want to take the top 1000
+variable predictors, center the data and remove higly correlated variables with cutoff = 0.9. Also, how do I merge these
+two files to create a table?
+
+There are a number of ways to get variable importance for a classification problem. I want to use random forests on the
+classification problem. How do I plot the top 10 important variables based on permutation-based method for the random
+forest classification? How do I normalize the importance scores obtained by the random forest method?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will start the preprocessing of the gene expression data with taking a log to tame the extreme values and
+add 1 pseudocount to deal with 0 values. Then, before doing other tasks we need to transpose our gene expression data,
+since our gene expression data are on the row side, and we need to put it on the column side to use machine learning
+algorithms. Then we will load the `caret` library to do the filtering. We will choose to take the top 1000 variable
+predictors, which have the biggest variances. Then we will center the data, and create a filter to remove higly
+correlated variables. Lastly we can merge the two data set by row names, which are now for both data set the patient-IDs.
+After the merge we have the sample-Ids on the first column, and we need to put it back on the row names. For that we will
+set the row names as the first column of the current data set and delete the first column.
+
+Now we will first split the data set with `caret::createPartition()` function. We will get indices for the 70 % of the
+data set and separate test and training sets using the indices (70 % for training and 30 % for test). For the random
+forest model, we will train it with `train()` function with method as "ranger" and indicate the importanc as
+"permutation" to calculate the importance. Variable importance can be calculated by `caret::varImp()` function. We can
+plot the top 10 important variables using `plot()`. We can normalize the importance scores by applying a function that
+does (x - min(x)) / (max(x) - min(x)) to all importance scores.
+
+```{r,eval=FALSE}  
+
+# 0. Data Read-------------------------------------------------------------------
+
+# read gene expression data set from glioblastoma patients
+gexp <- data.table::fread("LGGrnaseq.txt", data.table = FALSE)
+
+# Push the gene ID from the first column to the row names and delete the first column
+rownames(gexp) <- gexp[,1]
+gexp <- gexp[,-1]
+
+# read patient annotation data set from glioblastoma patients
+patient <- data.table::fread("patient2LGGsubtypes.txt", data.table = FALSE)
+
+# Push the patient ID from the first column to the row names and delete the first column
+rownames(patient) <- patient[,1]
+patient <- subset(patient, select = -1)
+
+# 1. Preprocessing----------------------------------------------------------------
+
+# Taking a log to tame the extreme values and add 1 pseudocount to deal with 0 values
+gexp <- log10(gexp+1)
+
+# We need to transpose our data, since the predictor variables are gene expression and the machine learning algorithms
+# require that the predictor variables are on the column side.
+tgexp <- t(gexp)
+
+# Load the needed library
+library(caret)
+
+# Choose to take the top 1000 variable predictors
+SDs <- apply(tgexp,2,sd)
+topPreds <- order(SDs,decreasing = TRUE)[1:1000]
+tgexp <- tgexp[,topPreds]
+
+# Centering the data using `preProcess()` function
+processCenter <- preProcess(tgexp, method = c("center"))
+tgexp <- predict(processCenter,tgexp)
+
+# create a filter for removing higly correlated variables
+# if two variables are highly correlated only one of them is removed
+corrFilt <- preProcess(tgexp, method = "corr",cutoff = 0.9)
+tgexp <- predict(corrFilt,tgexp)
+
+# merge patient with transposed gexp
+data <- merge(patient,tgexp,by="row.names")
+
+# push sample ids back to the row names
+rownames(data) <- data[,1]
+data <- data[,-1]
+
+# get indices for 70% of the data set
+intrain <- createDataPartition(y = data[,1], p= 0.7)[[1]]
+
+# seperate test and training sets
+training <- data[intrain,]
+testing <- data[-intrain,]
+
+# 2. Run random forests ---------------------
+
+set.seed(123)
+
+# we will now train random forest model
+rfFit <- train(subtype~., 
+               data = data, 
+               method = "ranger",
+               trControl= trainControl(method = "none"),
+               importance="permutation", # calculate importance
+               tuneGrid = data.frame(mtry=100,
+                                     min.node.size = 1,
+                                     splitrule="gini")
+)
+# print OOB error
+rfFit$finalModel$prediction.error
+
+# Variable Importance
+varImp(rfFit)
+plot(varImp(rfFit),top=10)
+
+# Extract the top 10 variables from both results
+top_10_rfFit <- row.names(varImp(rfFit))[1:10]
+
+
+# Normalize the importance scores from random forests
+# Compute importance scores using Random Forests (rfFit)
+importance_rf <- varImp(rfFit)
+
+# Normalizing function
+normalize <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+# Normalize the importance scores to a range between 0 and 1
+normalized_importance_rf <- normalize(importance_rf$importance)
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set about the DNA methylation levels, called "CpGmeth2Age.rds". The data set has 108 samples and each row
+is a different sample. In the first column the age of the sample is indicated, followed by the methylation values in the
+other columns. I would like to first remove the ones that have less than 0.1 standard deviation across the samples. Then
+I would like to run the random forest regression and plot the importance metrics.
+I would also like to split 20 % of the methylation-age data as test data and run elastic net regression on the training
+portion to tune parameters and test it on the test portion. How can I do that?
+Lastly, I want to run an ensemble model for regression using the caretEnsemble or mlr package and compare the results
+with the elastic net and random forest model. Did the test accuracy increase?
+
+completion:
+The data set must be read first. We will use `readRDS()` function to read the rds file. Then we will remove the columns
+that have less than 0.1 standard deviation across the samples. Then we will train the random forest model by `train()`
+with `method = "ranger"`. For the train control we will use cross validation method. We will calculate importance by
+setting `importance="permutation"` inside the function `train()` and using function `varImp()`. To plot the importance
+metrics, we will plot the top 10 variable importances using `plot()`.
+
+To split 20 % of the data as test data, we will get indices for 80% of the data set and use the indices to separate test
+and training data sets. To run elastic net regression on the training portion to tune parameters we need the
+`library(glmnet)`. We will set up 10-fold cross validation as the train control, and train the elastic net model with
+`train()` function, `method = "glmnet"`. We will test the alpha and lambda values, and the best alpha and lambda values
+by cross-validation accuracy will be determined. After the training, we will test the accuracy of trained set. We will
+use `predict()` function to predict the age by running our model on the methylation values. Then we will use
+`confusionMatrix()` to compare the predicted value(age) with actual age on the first column.
+
+For the last part, we will use the mlr package. We'll start by loading the necessary packages glmnet and mlr. Creating a
+task and learner for Elastic Net regression follows, where "Age" becomes the target variable. The "regr.glmnet" learner
+sets up the Elastic Net model framework. Then, we'll define a parameter set for Elastic Net hyperparameters and set up
+tuning control. We'll tune the Elastic Net model to optimize its performance.
+
+Next, a task for Random Forest regression is created with "Age" as the target. Hyperparameters for Random Forest are
+defined, and the model is tuned. We'll manually build a stack learner using Elastic Net and Random Forest models. This
+stack learner predicts responses using the "average" method. After training the stack learner and generating predictions,
+we'll evaluate its performance using measures like RMSE and R-squared.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+library(matrixStats)
+library(caret)
+
+# Reading the DNA methylation level data set.
+ameth <- readRDS("CpGmeth2Age.rds")
+
+# Remove the variables that have low variation (sd <= 0.1) across samples
+ameth <- ameth[,c(TRUE, matrixStats::colSds(as.matrix(ameth[,-1]))>0.1)]
+dim(ameth)
+
+# Use random forest regression to predict the age from methylation values
+
+set.seed(18)
+
+# Use cross validation method
+trctrl <- trainControl(method = "cv",number=10)
+
+# we will now train random forest model
+rfregFit <- train(Age~.,
+               data = ameth, 
+               method = "ranger",
+               trControl=trctrl,
+               importance="permutation", 
+               tuneGrid = data.frame(mtry=50,
+                                     min.node.size = 5,
+                                     splitrule="variance")
+               )
+
+
+# Calculate variable importance and plot
+varImp(rfregFit)
+plot(varImp(rfregFit),top=10)
+
+# 2-----------------------------------------------------------------------------
+# Split 20% of the methylation-age data as test data
+
+# get indices for 80% of the data set
+ind_train <- createDataPartition(y = ameth[,1], p= 0.8)[[1]]
+
+# seperate test and training sets
+training <- ameth[ind_train,]
+testing <- ameth[-ind_train,]
+
+# Run elastic net regression on the training portion to tune parameters
+set.seed(19)
+library(glmnet)
+
+# this method controls everything about training
+# we will just set up 10-fold cross validation
+trctrl <- trainControl(method = "cv",number=10)
+
+# Train elastic net model
+enetFit <- train(Age~.,
+                 data = training, 
+                 method = "glmnet",
+                 trControl=trctrl,
+                 tuneGrid = data.frame(alpha=0.5,
+                                       lambda=seq(0.1,0.7,0.05)))
+
+# best alpha and lambda values by cross-validation accuracy
+enetFit$bestTune
+
+# test it on the test portion
+class.res <- predict(enetFit,testing[,-1])
+class.res_factor <- factor(class.res, levels = levels(factor(testing[,1])))
+confusionMatrix(factor(testing[,1]),class.res_factor)$overall[1]
+
+# 3.----------------------------------------------------------------------------
+
+# Run an ensemble model for regression using the caretEnsemble or mlr package
+# Compare the results with the elastic net and random forest model
+# Did the test accuracy increase?
+
+# Load the required libraries
+library(mlr)
+library(glmnet)
+
+# 1. Create the task and learner for Elastic Net
+task_enet <- makeRegrTask(data = training, target = "Age")
+learner_enet <- makeLearner("regr.glmnet")
+
+# 2. Set hyperparameters for Elastic Net learner
+param_set_enet <- makeParamSet(
+  makeDiscreteParam("alpha", values = 0.5),
+  makeNumericParam("lambda", lower = 0.1, upper = 0.7)
+)
+
+# 3. Create the tuning control for Elastic Net
+ctrl_enet <- makeTuneControlRandom(maxit = 10)
+
+# 4. Tune the Elastic Net model
+resampling_enet <- makeResampleDesc("CV", iters = 10)
+tune_result_enet <- tuneParams(learner_enet, task_enet, resampling_enet, par.set = param_set_enet, control = ctrl_enet)
+
+# 5. Create the task and learner for Random Forest
+task_rf <- makeRegrTask(data = ameth, target = "Age")
+learner_rf <- makeLearner("regr.ranger")
+
+# 6. Set hyperparameters for Random Forest learner
+param_set_rf <- makeParamSet(
+  makeIntegerParam("mtry", lower = 50, upper = 50),
+  makeIntegerParam("min.node.size", lower = 5, upper = 5)
+)
+
+# 7. Create the tuning control for Random Forest
+ctrl_rf <- makeTuneControlRandom(maxit = 10)
+
+# 8. Tune the Random Forest model
+resampling_rf <- makeResampleDesc("Bootstrap", iters = 1)
+tune_result_rf <- tuneParams(learner_rf, task_rf, resampling_rf, par.set = param_set_rf, control = ctrl_rf)
+
+# 9. Create a random forest model using the best hyperparameters
+rf_model <- setHyperPars(makeLearner("regr.ranger"), par.vals = tune_result_rf$x)
+
+# 10. Create a stack learner manually
+stack_learner <- makeStackedLearner(
+  base.learners = list(learner_enet, rf_model),
+  predict.type = "response",
+  method = "average"
+)
+
+# 11. Train the stack learner
+stack_model <- train(stack_learner, task_enet)
+
+# 12. Make predictions using the stack model
+predictions <- predict(stack_model, task_enet)
+
+# 13. Evaluate the stack model's performance
+perf <- performance(predictions, measures = list(rmse, rsq))
+print(perf)
+
+```
+--- TASK END
+
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set about the DNA methylation levels, called "CpGmeth2Age.txt". The data set has 108 samples and each row
+is a different sample. In the first column the age of the sample is indicated, followed by the methylation values in the
+other columns. I would like to first remove the ones that have less than 0.1 standard deviation across the samples. Then
+I would like to run the random forest regression and plot the importance metrics. How can I do that?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will remove the columns that have less than 0.1 standard deviation across the samples. Then we will train
+the random forest model by `train()` with `method = "ranger"`. For the train control we will use cross validation method.
+We will calculate importance by setting `importance="permutation"` inside the function `train()` and using function
+`varImp()`. To plot the importance metrics, we will plot the top 10 variable importances using `plot()`.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+library(matrixStats)
+library(caret)
+
+# Reading the DNA methylation level data set.
+ameth <- data.table::fread("CpGmeth2Age.txt", data.table = FALSE)
+
+# Remove the variables that have low variation (sd <= 0.1) across samples
+ameth <- ameth[,c(TRUE, matrixStats::colSds(as.matrix(ameth[,-1]))>0.1)]
+dim(ameth)
+
+# Use random forest regression to predict the age from methylation values
+
+set.seed(18)
+
+# Use cross validation method
+trctrl <- trainControl(method = "cv",number=10)
+
+# we will now train random forest model
+rfregFit <- train(Age~.,
+               data = ameth, 
+               method = "ranger",
+               trControl=trctrl,
+               importance="permutation", 
+               tuneGrid = data.frame(mtry=50,
+                                     min.node.size = 5,
+                                     splitrule="variance")
+               )
+
+
+# Calculate variable importance and plot
+varImp(rfregFit)
+plot(varImp(rfregFit),top=10)
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set about the DNA methylation levels, called "CpGmeth2Age.txt". The data set has 108 samples and each row
+is a different sample. In the first column the age of the sample is indicated, followed by the methylation values in the
+other columns. I would like to first remove the ones that have less than 0.1 standard deviation across the samples. Then
+I would like to split 20 % of the methylation-age data as test data and run elastic net regression on the training
+portion to tune parameters and test it on the test portion. How can I do that?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will remove the columns that have less than 0.1 standard deviation across the samples.
+To split 20 % of the data as test data, we will get indices for 80% of the data set and use the indices to separate test
+and training data sets. To run elastic net regression on the training portion to tune parameters we need the
+`library(glmnet)`. We will set up 10-fold cross validation as the train control, and train the elastic net model with
+`train()` function, `method = "glmnet"`. We will test the alpha and lambda values, and the best alpha and lambda values
+by cross-validation accuracy will be determined. After the training, we will test the accuracy of trained set. We will
+use `predict()` function to predict the age by running our model on the methylation values. Then we will use
+`confusionMatrix()` to compare the predicted value(age) with actual age on the first column.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+library(matrixStats)
+library(caret)
+
+# Reading the DNA methylation level data set.
+ameth <- data.table::fread("CpGmeth2Age.txt", data.table = FALSE)
+
+# Remove the variables that have low variation (sd <= 0.1) across samples
+ameth <- ameth[,c(TRUE, matrixStats::colSds(as.matrix(ameth[,-1]))>0.1)]
+dim(ameth)
+
+
+# -----------------------------------------------------------------------------
+# Split 20% of the methylation-age data as test data
+
+# get indices for 80% of the data set
+ind_train <- createDataPartition(y = ameth[,1], p= 0.8)[[1]]
+
+# seperate test and training sets
+training <- ameth[ind_train,]
+testing <- ameth[-ind_train,]
+
+# Run elastic net regression on the training portion to tune parameters
+set.seed(19)
+library(glmnet)
+
+# this method controls everything about training
+# we will just set up 10-fold cross validation
+trctrl <- trainControl(method = "cv",number=10)
+
+# Train elastic net model
+enetFit <- train(Age~.,
+                 data = training, 
+                 method = "glmnet",
+                 trControl=trctrl,
+                 tuneGrid = data.frame(alpha=0.5,
+                                       lambda=seq(0.1,0.7,0.05)))
+
+# best alpha and lambda values by cross-validation accuracy
+enetFit$bestTune
+
+# test it on the test portion
+class.res <- predict(enetFit,testing[,-1])
+class.res_factor <- factor(class.res, levels = levels(factor(testing[,1])))
+confusionMatrix(factor(testing[,1]),class.res_factor)$overall[1]
+
+
+```
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: read | data wrangling | ML/Stats, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data set about the DNA methylation levels, called "CpGmeth2Age.txt". The data set has 108 samples and each row
+is a different sample. In the first column the age of the sample is indicated, followed by the methylation values in the
+other columns. I would like to first remove the ones that have less than 0.1 standard deviation across the samples. 
+Then I would like to split 20 % of the methylation-age data as test data and run elastic net regression on the training
+portion to tune parameters and test it on the test portion. How can I do that?
+Lastly, I want to run an ensemble model for regression using the caretEnsemble or mlr package and compare the results
+with the elastic net and random forest model. Did the test accuracy increase?
+
+completion:
+The data set must be read first. We will use `data.table::fread()` function to read in the text file as it can read files
+faster. Then we will remove the columns that have less than 0.1 standard deviation across the samples.
+To split 20 % of the data as test data, we will get indices for 80% of the data set and use the indices to separate test
+and training data sets. To run elastic net regression on the training portion to tune parameters we need the
+`library(glmnet)`. We will set up 10-fold cross validation as the train control, and train the elastic net model with
+`train()` function, `method = "glmnet"`. We will test the alpha and lambda values, and the best alpha and lambda values
+by cross-validation accuracy will be determined. After the training, we will test the accuracy of trained set. We will
+use `predict()` function to predict the age by running our model on the methylation values. Then we will use
+`confusionMatrix()` to compare the predicted value(age) with actual age on the first column.
+
+For the last part, we will use the mlr package. We'll start by loading the necessary packages glmnet and mlr.
+Creating a task and learner for Elastic Net regression follows, where "Age" becomes the target variable.
+The "regr.glmnet" learner sets up the Elastic Net model framework. Then, we'll define a parameter set for Elastic Net
+hyperparameters and set up tuning control. We'll tune the Elastic Net model to optimize its performance.
+Next, a task for Random Forest regression is created with "Age" as the target. Hyperparameters for Random Forest are
+defined, and the model is tuned. We'll manually build a stack learner using Elastic Net and Random Forest models. This
+stack learner predicts responses using the "average" method. After training the stack learner and generating predictions,
+we'll evaluate its performance using measures like RMSE and R-squared.
+
+
+```{r,eval=FALSE}  
+
+library(data.table)
+library(matrixStats)
+library(caret)
+
+# Reading the DNA methylation level data set.
+ameth <- data.table::fread("CpGmeth2Age.txt", data.table = FALSE)
+
+# Remove the variables that have low variation (sd <= 0.1) across samples
+ameth <- ameth[,c(TRUE, matrixStats::colSds(as.matrix(ameth[,-1]))>0.1)]
+dim(ameth)
+
+
+# 1.-----------------------------------------------------------------------------
+# Split 20% of the methylation-age data as test data
+
+# get indices for 80% of the data set
+ind_train <- createDataPartition(y = ameth[,1], p= 0.8)[[1]]
+
+# seperate test and training sets
+training <- ameth[ind_train,]
+testing <- ameth[-ind_train,]
+
+# Run elastic net regression on the training portion to tune parameters
+set.seed(19)
+library(glmnet)
+
+# this method controls everything about training
+# we will just set up 10-fold cross validation
+trctrl <- trainControl(method = "cv",number=10)
+
+# Train elastic net model
+enetFit <- train(Age~.,
+                 data = training, 
+                 method = "glmnet",
+                 trControl=trctrl,
+                 tuneGrid = data.frame(alpha=0.5,
+                                       lambda=seq(0.1,0.7,0.05)))
+
+# best alpha and lambda values by cross-validation accuracy
+enetFit$bestTune
+
+# test it on the test portion
+class.res <- predict(enetFit,testing[,-1])
+class.res_factor <- factor(class.res, levels = levels(factor(testing[,1])))
+confusionMatrix(factor(testing[,1]),class.res_factor)$overall[1]
+
+# 2.----------------------------------------------------------------------------
+
+# Run an ensemble model for regression using the caretEnsemble or mlr package
+# Compare the results with the elastic net and random forest model
+# Did the test accuracy increase?
+
+# Load the required libraries
+library(mlr)
+library(glmnet)
+
+# 1. Create the task and learner for Elastic Net
+task_enet <- makeRegrTask(data = training, target = "Age")
+learner_enet <- makeLearner("regr.glmnet")
+
+# 2. Set hyperparameters for Elastic Net learner
+param_set_enet <- makeParamSet(
+  makeDiscreteParam("alpha", values = 0.5),
+  makeNumericParam("lambda", lower = 0.1, upper = 0.7)
+)
+
+# 3. Create the tuning control for Elastic Net
+ctrl_enet <- makeTuneControlRandom(maxit = 10)
+
+# 4. Tune the Elastic Net model
+resampling_enet <- makeResampleDesc("CV", iters = 10)
+tune_result_enet <- tuneParams(learner_enet, task_enet, resampling_enet, par.set = param_set_enet, control = ctrl_enet)
+
+# 5. Create the task and learner for Random Forest
+task_rf <- makeRegrTask(data = ameth, target = "Age")
+learner_rf <- makeLearner("regr.ranger")
+
+# 6. Set hyperparameters for Random Forest learner
+param_set_rf <- makeParamSet(
+  makeIntegerParam("mtry", lower = 50, upper = 50),
+  makeIntegerParam("min.node.size", lower = 5, upper = 5)
+)
+
+# 7. Create the tuning control for Random Forest
+ctrl_rf <- makeTuneControlRandom(maxit = 10)
+
+# 8. Tune the Random Forest model
+resampling_rf <- makeResampleDesc("Bootstrap", iters = 1)
+tune_result_rf <- tuneParams(learner_rf, task_rf, resampling_rf, par.set = param_set_rf, control = ctrl_rf)
+
+# 9. Create a random forest model using the best hyperparameters
+rf_model <- setHyperPars(makeLearner("regr.ranger"), par.vals = tune_result_rf$x)
+
+# 10. Create a stack learner manually
+stack_learner <- makeStackedLearner(
+  base.learners = list(learner_enet, rf_model),
+  predict.type = "response",
+  method = "average"
+)
+
+# 11. Train the stack learner
+stack_model <- train(stack_learner, task_enet)
+
+# 12. Make predictions using the stack model
+predictions <- predict(stack_model, task_enet)
+
+# 13. Evaluate the stack model's performance
+perf <- performance(predictions, measures = list(rmse, rsq))
+print(perf)
+
+
+```
+--- TASK END

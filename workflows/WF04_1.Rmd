@@ -1,0 +1,71 @@
+---
+title: "prompt/completion pairs chapter 4"
+author: "authors"
+date: "2023-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 0, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a data table named `df` (shown below). I would like to calculate the distance metric between gene expression
+vectors between the patient pairs using "Manhattan distance" , "Euclidean Distance" and the "correlation distance".
+How can I do that? Also, how can I scale the gene expression values? I want to get a tree structure or a dendrogram that
+shows the relationship between the individual data points and clusters. How do I do a hierarchical clustering on Euclidean
+distances between patients and plot the resulting clustering tree?
+
+```{r expTable,echo=FALSE}
+df <- data.frame(
+    IRX4=c(11,13,2,1),
+    OCT4=c(10,13,4,3 ),
+    PAX6=c(1 ,3 ,10,9),
+    row.names=c("patient1","patient2","patient3","patient4")
+  )
+```
+
+completion:
+We will first the given data table `df` to be able to use for the tasks. Then we will use the `dist()` function for
+Manhattan and Euclidean distances. To calculate the correlation distance, we will use the formula of $d_{AB}=1-\rho$,
+where $\rho$ is the Pearson correlation coefficient between two vectors. For the standardization we can use `scale()`
+function. After that, we can do a hierarchical clusting on Euclidean distance. We will store the Euclidean distance in a
+variable, and use `hclust()` function on that. We will use `method = "complete"` for complete linkage. Lastly, we can plot
+the clustering tree by simply using `plot()` on the hierarchical clusting.
+
+```{r,eval=FALSE}  
+
+# Copy the data frame
+df <- data.frame(
+    IRX4=c(11,13,2,1),
+    OCT4=c(10,13,4,3 ),
+    PAX6=c(1 ,3 ,10,9),
+    row.names=c("patient1","patient2","patient3","patient4")
+  )
+
+# Calculate the distance metric using Manhattan method
+dist(df,method="manhattan")
+
+# Calculate the distance metric using Euclidean method
+dist(df,method="euclidean")
+
+# Calculate the distance metric using correlation distance
+as.dist(1-cor(t(df))) 
+
+# Scale the data frame
+scale(df)
+
+# When not specified, default is Euclidean method
+d <- dist(df)
+
+# Use the base dunction in R to do hierarchical clusting
+hc=hclust(d,method="complete")
+
+# Plot the hierarchical clusting
+plot(hc)
+
+```
+--- TASK END

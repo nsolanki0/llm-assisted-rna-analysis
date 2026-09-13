@@ -1,0 +1,1281 @@
+---
+title: "prompt/completion pairs single-cell_basic_chapter 3"
+author: "authors"
+date: "2023-12-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+i<-1
+```
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. I would like to calculate per-gene
+variance.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. We then extract the meta data from the sce using metadata()
+function from scran package and use it to visualize the fit. The demo example
+shows variance in the PBMC data set as a function of the mean. Each point 
+represents a gene while the blue line represents the trend fitted to all genes.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# visualizing the fit
+fit.pbmc <- metadata(dec.pbmc)
+plot(fit.pbmc$mean, fit.pbmc$var, xlab="Mean of log-expression",
+    ylab="Variance of log-expression")
+curve(fit.pbmc$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select an appropriate 
+set of highly variable genes (HVGs).
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. By applying order to the biological 
+component of the fitted trend to the variance we can order the genes by most 
+interesting (i.e., highly variable genes) to least interesting.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# ordering by most interesting genes
+dec.pbmc[order(dec.pbmc$bio, decreasing=TRUE),] 
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+spike-in transcripts data. Using the spike-in data I would like to quantify the
+variation per gene and select an appropriate set of highly variable genes (HVGs).
+How can I do this?
+
+completion:
+Under the assumption that the variation in expression for most genes is driven 
+by uninteresting processes like sampling noise, the fitted value of the trend 
+at any given gene’s abundance represents an estimate of its uninteresting 
+variation, which we call the technical component. The biological component for 
+each gene is then defined as the difference between its total variance and the 
+technical component. This biological component represents the “interesting” 
+variation for each gene and can be used as the metric for HVG selection.
+The above stated assumption may be problematic in rare scenarios where many 
+genes at a particular abundance are affected by a biological process. For 
+example, strong upregulation of cell type-specific genes may result in an 
+enrichment of HVGs at high abundances. This would inflate the fitted trend in 
+that abundance interval and compromise the detection of the relevant genes. We 
+can avoid this problem by fitting a mean-dependent trend to the variance of the 
+spike-in transcripts, if they are available. The premise here is that spike-ins 
+should not be affected by biological variation, so the fitted value of the 
+spike-in trend should represent a better estimate of the technical component 
+for each gene. 
+To calculate per-gene variance we start of by loading the SingleCellExperiment 
+(sce) objects. Then using modelGeneVarWithSpikes() from the scran package we 
+fit a mean-dependent trend to the variance of the spike-in transcripts. By 
+applying order to the biological component of the fitted trend to the variance 
+we can order the genes by most interesting (i.e., highly variable genes) to 
+least interesting.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance of the spike-in transcripts
+dec.spike.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC")
+
+# ordering by most interesting genes
+dec.spike.416b[order(dec.spike.416b$bio, decreasing=TRUE),]
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+spike-in transcripts data. Using the spike-in data I would like to fit a 
+mean-dependent trend to the variance of the spike-in transcripts and visualize 
+it. How can I do this?
+
+completion:
+Under the assumption that the variation in expression for most genes is driven 
+by uninteresting processes like sampling noise, the fitted value of the trend 
+at any given gene’s abundance represents an estimate of its uninteresting 
+variation, which we call the technical component. The biological component for 
+each gene is then defined as the difference between its total variance and the 
+technical component. This biological component represents the “interesting” 
+variation for each gene and can be used as the metric for HVG selection.
+The above stated assumption may be problematic in rare scenarios where many 
+genes at a particular abundance are affected by a biological process. For 
+example, strong upregulation of cell type-specific genes may result in an 
+enrichment of HVGs at high abundances. This would inflate the fitted trend in 
+that abundance interval and compromise the detection of the relevant genes. We 
+can avoid this problem by fitting a mean-dependent trend to the variance of the 
+spike-in transcripts, if they are available. The premise here is that spike-ins 
+should not be affected by biological variation, so the fitted value of the 
+spike-in trend should represent a better estimate of the technical component 
+for each gene. 
+To calculate per-gene variance we start of by loading the SingleCellExperiment 
+(sce) objects. Then using modelGeneVarWithSpikes() from scran package we 
+fit a mean-dependent trend to the variance of the spike-in transcripts. 
+To visualize the fit we can plot the mean-dependent trend to the variance and 
+additional information can be added to the plot by first extracting them from 
+the metadata using metadata() function from scran package and then adding them.
+The demo example shows variance in the 416B data set as a function of the mean. 
+Each point represents a gene (black) or spike-in transcript (red) and the blue 
+line represents the trend fitted to all spike-ins.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance of the spike-in transcripts
+dec.spike.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC")
+
+# ordering by most interesting genes
+dec.spike.416b[order(dec.spike.416b$bio, decreasing=TRUE),]
+
+# extracting meta data
+fit.spike.416b <- metadata(dec.spike.416b)
+
+# visualizing the fit
+plot(dec.spike.416b$mean, dec.spike.416b$total, xlab="Mean of log-expression",
+    ylab="Variance of log-expression")
+#fit.spike.416b <- metadata(dec.spike.416b)
+points(fit.spike.416b$mean, fit.spike.416b$var, col="red", pch=16)
+curve(fit.spike.416b$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. My data does not
+contain spike-in transcripts data. What approach should I follow to quantify
+the variation per gene and select an appropriate set of highly variable genes 
+(HVGs)?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. Using the modelGeneVar() function from the scran package 
+we fit a trend to the variance with respect to abundance across all genes. 
+Under the assumption that the variation in expression for most genes is driven 
+by uninteresting processes like sampling noise, the fitted value of the trend 
+at any given gene’s abundance represents an estimate of its uninteresting 
+variation, which we call the technical component. The biological component for 
+each gene is then defined as the difference between its total variance and the 
+technical component. This biological component represents the “interesting” 
+variation for each gene and can be used as the metric for HVG selection.
+The above stated assumption may be problematic in rare scenarios where many 
+genes at a particular abundance are affected by a biological process. For 
+example, strong upregulation of cell type-specific genes may result in an 
+enrichment of HVGs at high abundances. This would inflate the fitted trend in 
+that abundance interval and compromise the detection of the relevant genes. We 
+can avoid this problem by fitting a mean-dependent trend to the variance of the 
+spike-in transcripts, if they are available. The premise here is that spike-ins 
+should not be affected by biological variation, so the fitted value of the 
+spike-in trend should represent a better estimate of the technical component 
+for each gene.
+In the absence of spike-in data, one can attempt to create a trend by making 
+some distributional assumptions about the noise. For example, UMI counts 
+typically exhibit near-Poisson variation if we only consider technical noise 
+from library preparation and sequencing. For this, we start of by loading the 
+SingleCellExperiment (sce) objects. Then using modelGeneVarByPoisson() function 
+from scran package we fit a mean-variance trend to the log-counts. Applying 
+order to the biological component of the fitted trend to the log-counts we can 
+order the genes by most interesting (i.e., highly variable genes) to least 
+interesting.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# set seed
+set.seed(0010101)
+
+# variance trend in the log-counts
+dec.pois.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+
+# ordering by most interesting genes
+dec.pois.pbmc <- dec.pois.pbmc[order(dec.pois.pbmc$bio, decreasing=TRUE),]
+
+# check the order
+head(dec.pois.pbmc)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. My data does not
+contain spike-in transcripts data. What approach should I follow to quantify
+the variation per gene and then visualize the fit?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. Using the modelGeneVar() function from the scran package 
+we fit a trend to the variance with respect to abundance across all genes. 
+Under the assumption that the variation in expression for most genes is driven 
+by uninteresting processes like sampling noise, the fitted value of the trend 
+at any given gene’s abundance represents an estimate of its uninteresting 
+variation, which we call the technical component. The biological component for 
+each gene is then defined as the difference between its total variance and the 
+technical component. This biological component represents the “interesting” 
+variation for each gene and can be used as the metric for HVG selection.
+The above stated assumption may be problematic in rare scenarios where many 
+genes at a particular abundance are affected by a biological process. For 
+example, strong upregulation of cell type-specific genes may result in an 
+enrichment of HVGs at high abundances. This would inflate the fitted trend in 
+that abundance interval and compromise the detection of the relevant genes. We 
+can avoid this problem by fitting a mean-dependent trend to the variance of the 
+spike-in transcripts, if they are available. The premise here is that spike-ins 
+should not be affected by biological variation, so the fitted value of the 
+spike-in trend should represent a better estimate of the technical component 
+for each gene.
+In the absence of spike-in data, one can attempt to create a trend by making 
+some distributional assumptions about the noise. For example, UMI counts 
+typically exhibit near-Poisson variation if we only consider technical noise 
+from library preparation and sequencing. This can be used to construct a 
+mean-variance trend in the log-counts with the modelGeneVarByPoisson() function.
+For this, we start of by loading the SingleCellExperiment (sce) objects. Then 
+using modelGeneVarByPoisson() function from scran package we fit a mean-variance 
+trend to the log-counts. Applying order to the biological component of the 
+fitted trend to the log-counts we can order the genes by most interesting 
+(i.e., highly variable genes) to least interesting.
+To visualize the fit we can plot the variance against the mean of log-expression.
+The demo example shows variance of normalized log-expression values for each 
+gene in the PBMC dataset, plotted against the mean log-expression. The blue 
+line represents represents the mean-variance relationship corresponding to 
+Poisson noise. Note the increased residuals of the high-abundance genes, which 
+can be interpreted as the amount of biological variation that was assumed to be 
+“uninteresting” when fitting the gene-based trend.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# set seed
+set.seed(0010101)
+
+# variance trend in the log-counts
+dec.pois.pbmc <- modelGeneVarByPoisson(sce.pbmc)
+
+# ordering by most interesting genes
+dec.pois.pbmc <- dec.pois.pbmc[order(dec.pois.pbmc$bio, decreasing=TRUE),]
+
+# check the order
+head(dec.pois.pbmc)
+
+# visualize the fit
+plot(dec.pois.pbmc$mean, dec.pois.pbmc$total, pch=16, xlab="Mean of log-expression",
+    ylab="Variance of log-expression")
+curve(metadata(dec.pois.pbmc)$trend(x), col="dodgerblue", add=TRUE)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. Keeping in mind 
+that my data contains multiple batches what approach should I follow to select 
+an appropriate set of highly variable genes (HVGs)?
+
+completion:
+Data containing multiple batches will often exhibit batch effects. We are 
+usually not interested in HVGs that are driven by batch effects; instead, 
+we want to focus on genes that are highly variable within each batch. This is 
+naturally achieved by performing trend fitting and variance decomposition 
+separately for each batch. Example below demonstrate this approach by treating 
+each plate (block) in the 416B dataset as a different batch, using the 
+modelGeneVarWithSpikes() function from scran package. 
+We start of by loading the SingleCellExperiment (sce) objects. Then using 
+modelGeneVarWithSpikes() function we fit the trend and variance batch wise. 
+The biological component represents the “interesting” variation for each gene 
+and can be used as the metric for HVG selection. So by applying order to the 
+biological component of the fitted trend we can order the genes by most 
+interesting (i.e., highly variable genes) to least interesting.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS ABOVE
+
+library(scran)
+
+# trend fitting and variance decomposition separately for each batch
+dec.block.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+
+# ordering by most interesting genes
+head(dec.block.416b[order(dec.block.416b$bio, decreasing=TRUE),1:6])
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | visualization, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data. Keeping in mind 
+that my data contains multiple batches I would like to select an appropriate 
+set of highly variable genes (HVGs). In addition, I would like to visualize the 
+differences between batches. How can I do this?
+
+completion:
+Data containing multiple batches will often exhibit batch effects. We are 
+usually not interested in HVGs that are driven by batch effects; instead, 
+we want to focus on genes that are highly variable within each batch. This is 
+naturally achieved by performing trend fitting and variance decomposition 
+separately for each batch. Example below demonstrate this approach by treating 
+each plate (block) in the 416B dataset as a different batch, using the 
+modelGeneVarWithSpikes() function from scran package. 
+We start of by loading the SingleCellExperiment (sce) objects. Then using 
+modelGeneVarWithSpikes() function we fit the trend and variance batch wise. 
+The biological component represents the “interesting” variation for each gene 
+and can be used as the metric for HVG selection. So by applying order to the 
+biological component of the fitted trend we can order the genes by most 
+interesting (i.e., highly variable genes) to least interesting.
+The use of a batch-specific trend fit is useful as it accommodates differences 
+in the mean-variance trends between batches. This is especially important if 
+batches exhibit systematic technical differences, e.g., differences in coverage 
+or in the amount of spike-in RNA added. 
+In our example, there are only minor differences between the trends, which 
+indicates that the experiment was tightly replicated across plates. The analysis 
+of each plate yields estimates of the biological and technical components for 
+each gene, which are averaged across plates to take advantage of information 
+from multiple batches.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(scRNAseq)
+sce.416b <- LunSpikeInData(which="416b") 
+sce.416b$block <- factor(sce.416b$block)
+
+#--- gene-annotation ---#
+library(AnnotationHub)
+ens.mm.v97 <- AnnotationHub()[["AH73905"]]
+rowData(sce.416b)$ENSEMBL <- rownames(sce.416b)
+rowData(sce.416b)$SYMBOL <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SYMBOL")
+rowData(sce.416b)$SEQNAME <- mapIds(ens.mm.v97, keys=rownames(sce.416b),
+    keytype="GENEID", column="SEQNAME")
+
+library(scater)
+rownames(sce.416b) <- uniquifyFeatureNames(rowData(sce.416b)$ENSEMBL, 
+    rowData(sce.416b)$SYMBOL)
+
+#--- quality-control ---#
+mito <- which(rowData(sce.416b)$SEQNAME=="MT")
+stats <- perCellQCMetrics(sce.416b, subsets=list(Mt=mito))
+qc <- quickPerCellQC(stats, percent_subsets=c("subsets_Mt_percent",
+    "altexps_ERCC_percent"), batch=sce.416b$block)
+sce.416b <- sce.416b[,!qc$discard]
+
+#--- normalization ---#
+library(scran)
+sce.416b <- computeSumFactors(sce.416b)
+sce.416b <- logNormCounts(sce.416b)
+
+## FOR DEMO PURPOSE WE'LL USE 416B DATASET CREATED AS ABOVE
+
+library(scran)
+
+# trend fitting and variance decomposition separately for each batch
+dec.block.416b <- modelGeneVarWithSpikes(sce.416b, "ERCC", block=sce.416b$block)
+
+# ordering by most interesting genes
+head(dec.block.416b[order(dec.block.416b$bio, decreasing=TRUE),1:6])
+
+# batch differnce visualization
+par(mfrow=c(1,2))
+blocked.stats <- dec.block.416b$per.block
+for (i in colnames(blocked.stats)) {
+    current <- blocked.stats[[i]]
+    plot(current$mean, current$total, main=i, pch=16, cex=0.5,
+        xlab="Mean of log-expression", ylab="Variance of log-expression")
+    curfit <- metadata(current)
+    points(curfit$mean, curfit$var, col="red", pch=16)
+    curve(curfit$trend(x), col='dodgerblue', add=TRUE, lwd=2) 
+}
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select an appropriate 
+set of highly variable genes (HVGs). For the selection of HVGs is there a 
+strategy that I can follow?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+While making a selection a larger subset will reduce the risk of discarding 
+interesting biological signal by retaining more potentially relevant genes, at 
+the cost of increasing noise from irrelevant genes that might obscure said 
+signal. It is difficult to determine the optimal trade-off for any given 
+application as noise in one context may be useful signal in another. For 
+example, heterogeneity in T cell activation responses is an interesting 
+phenomena but may be irrelevant noise in studies that only care about 
+distinguishing the major immunophenotypes.
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. For modelGeneVar() and modelGeneVarWithSpikes() functions, we would 
+select the genes with the largest biological components. This is conveniently 
+done by using getTopHVgs() function from scran package, as shown below with 
+n = 1000.
+The choice of n also has a fairly straightforward biological interpretation. 
+It is based on trend-fitting assumption that most genes do not exhibit 
+biological heterogeneity; this implies that they are not differentially 
+expressed (DE) between cell types or states in our population. If we quantify 
+this assumption into a statement that, e.g., no more than 5% of genes are 
+differentially expressed, we can naturally set n to 5% of the number of genes. 
+In practice, we usually do not know the proportion of DE genes beforehand so 
+this interpretation just exchanges one unknown for another. Nonetheless, it is 
+still useful as it implies that we should lower n for less heterogeneous 
+datasets, retaining most of the biological signal without unnecessary noise 
+from irrelevant genes. Conversely, more heterogeneous datasets should use 
+larger values of n to preserve secondary factors of variation beyond those 
+driving the most obvious HVGs.
+The main disadvantage of this approach is that it turns HVG selection into a 
+competition between genes, whereby a subset of very highly variable genes can 
+push other informative genes out of the top set. This can be problematic for 
+analyses of highly heterogeneous populations if the loss of important markers 
+prevents the resolution of certain subpopulations. In the most extreme example, 
+consider a situation where a single subpopulation is very different from the 
+others. In such cases, the top set will be dominated by differentially expressed 
+genes involving that distinct subpopulation, compromising resolution of 
+heterogeneity between the other populations. (This can be recovered with a 
+nested analysis, but we would prefer to avoid the problem in the first place.)
+Another potential concern with this approach is the fact that the choice of n
+is fairly arbitrary, with any value from 500 to 5000 considered “reasonable”. 
+We have chosen n = 1000 here, though there is no particular a priori reason for 
+doing so. Our recommendation is to simply pick an arbitrary n and proceed with 
+the rest of the analysis, with the intention of testing other choices later, 
+rather than spending much time worrying about obtaining the “optimal” value.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# taking the top 1000 genes
+hvg.pbmc.var <- getTopHVGs(dec.pbmc, n=1000)
+
+# get the HVgenes
+str(hvg.pbmc.var)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select the top 10% of highly 
+variable genes (HVGs).
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. Similarly, selection of top 10% of HVGs can be performed. For 
+modelGeneVar() and modelGeneVarWithSpikes() functions, we would select the 
+genes with the largest biological components. This is conveniently done by 
+using getTopHVgs() function from scran package.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# select top 10% of HVGs
+chosen <- getTopHVGs(dec.pbmc, prop=0.1)
+
+# get the HVgenes
+str(chosen)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select the top 10% of highly 
+variable genes (HVGs). Following the selection I would like to subset my 
+SingleCellExperiment to only retain the selected genes (HVGs).
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. Similarly, selection of top 10% of HVGs can be performed. For 
+modelGeneVar() and modelGeneVarWithSpikes() functions, we would select the 
+genes with the largest biological components. This is conveniently done by 
+using getTopHVgs() function from scran package.
+Once we have the selection of interest we can subset the SingleCellExperiment 
+to only retain our selection of HVGs. This ensures that downstream methods will 
+only use these genes for their calculations. The downside is that the non-HVGs 
+are discarded from the new SingleCellExperiment, making it slightly more 
+inconvenient to interrogate the full dataset for interesting genes that are not 
+HVGs.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# select top 10% of HVGs
+chosen <- getTopHVGs(dec.pbmc, prop=0.1)
+
+# get the HVgenes
+str(chosen)
+
+# subset sce to retain only HVGs
+sce.pbmc.hvg <- sce.pbmc[chosen,]
+
+# dimensions of new sce
+dim(sce.pbmc.hvg)
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select different sets of 
+highly variable genes (HVGs). I would then like to save my selections in my 
+SingleCellExperiment for downstream analysis. 
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. Similarly, selection of top 10%, 20% & 30% of HVGs can be performed. 
+For modelGeneVar() and modelGeneVarWithSpikes() functions, we would select the 
+genes with the largest biological components. This is conveniently done by 
+using getTopHVgs() function from scran package.
+We can keep the original SingleCellExperiment object and specify the genes to 
+use for downstream functions via an extra argument like subset.row = . This is 
+useful if the analysis uses multiple sets of HVGs at different steps, whereby 
+one set of HVGs can be easily swapped for another in specific steps.
+This approach is facilitated by the rowSubset() utility, which allows us to 
+easily store one or more sets of interest in our SingleCellExperiment. By doing 
+so, we avoid the need to keep track of a separate chosen variable and ensure 
+that our HVG set is synchronized with any downstream row subsetting of
+SingleCellExperiment object.
+It can be inconvenient to repeatedly specify the desired feature set across 
+steps, so some downstream functions will automatically subset to the default 
+rowSubset() if present in the SingleCellExperiment. However, we find that it is 
+generally safest to be explicit about which set is being used for a particular 
+step.
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# select top 10% of HVGs
+chosen <- getTopHVGs(dec.pbmc, prop=0.1)
+
+# get the HVgenes
+str(chosen)
+
+# performing PCA only on the chosen HVGs
+library(scater)
+sce.pbmc <- runPCA(sce.pbmc, subset_row=chosen)
+reducedDimNames(sce.pbmc)
+
+# top 10% of HVGs stored in the default 'subset'
+rowSubset(sce.pbmc) <- chosen 
+
+# top 20% of HVGs stored in 'HVGs.more'
+rowSubset(sce.pbmc, "HVGs.more") <- getTopHVGs(dec.pbmc, prop=0.2)
+
+# top 30% of HVGs stored in 'HVGs.less'
+rowSubset(sce.pbmc, "HVGs.less") <- getTopHVGs(dec.pbmc, prop=0.3)
+
+# confirm the newly added data
+colnames(rowData(sce.pbmc))
+
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling, numData: 1, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a SingleCellExperiment object of my single cell data that also contain
+log transformed normalized expression values. Using the log transformed data
+I would like to quantify the variation per gene and select the top 10% of highly 
+variable genes (HVGs). Using the selection I would like to create a 
+SingleCellExperiment to only retain the selected genes (HVGs), and have it and 
+my original SingleCellExperiment in the same SingleCellExperiment object to be 
+able to access them both conveniently.
+How can I do this?
+
+completion:
+The simplest approach to quantifying per-gene variation is to compute the 
+variance of the log-normalized expression values (i.e., “log-counts”) for each 
+gene across all cells. To calculate per-gene variance we start of by loading 
+the SingleCellExperiment (sce) objects. Using the modelGeneVar() function from
+the scran package we fit a trend to the variance with respect to abundance 
+across all genes. At any given abundance, we assume that the variation in 
+expression for most genes is driven by uninteresting processes like sampling 
+noise. Under this assumption, the fitted value of the trend at any given gene’s 
+abundance represents an estimate of its uninteresting variation, which we call 
+the technical component. We then define the biological component for each gene 
+as the difference between its total variance and the technical component. This 
+biological component represents the “interesting” variation for each gene and 
+can be used as the metric for HVG selection. 
+The most obvious selection strategy is to take the top n genes with the largest 
+values for the relevant variance metric. The main advantage of this approach is 
+that the user can directly control the number of genes retained, which ensures 
+that the computational complexity of downstream calculations is easily 
+predicted. Similarly, selection of top 10% of HVGs can be performed. For 
+modelGeneVar() and modelGeneVarWithSpikes() functions, we would select the 
+genes with the largest biological components. This is conveniently done by 
+using getTopHVgs() function from scran package.
+Once we have the selection of interest we can subset the SingleCellExperiment 
+to only retain our selection of HVGs. This ensures that downstream methods will 
+only use these genes for their calculations. The downside is that the non-HVGs 
+are discarded from the new SingleCellExperiment, making it slightly more 
+inconvenient to interrogate the full dataset for interesting genes that are not 
+HVGs. This can be tackled by having the original SingleCellExperiment as well
+in the same SingleCellExperiment object.
+“alternative Experiment” system in the SingleCellExperiment class designed for 
+storing alternative features like spike-ins or antibody tags, can instead be 
+used to hold our full dataset while we perform our downstream operations 
+conveniently on the HVG subset. This avoids book-keeping problems in long 
+analyses when the original dataset is not synchronized with the HVG subsetted 
+data.
+We do this by using the subsetted SingleCellExperiment object and storing in 
+its alternative experiment our original/full dataset. This way we can perform 
+our downstream analysis directly on the HVG subsetted dataset without 
+explicitly specifying it (HVG).
+
+```{r,eval=FALSE}
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS BELOW 
+
+#--- loading ---#
+library(DropletTestFiles)
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+
+library(DropletUtils)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+
+#--- gene-annotation ---#
+library(scater)
+rownames(sce.pbmc) <- uniquifyFeatureNames(
+    rowData(sce.pbmc)$ID, rowData(sce.pbmc)$Symbol)
+
+library(EnsDb.Hsapiens.v86)
+location <- mapIds(EnsDb.Hsapiens.v86, keys=rowData(sce.pbmc)$ID, 
+    column="SEQNAME", keytype="GENEID")
+
+#--- cell-detection ---#
+set.seed(100)
+e.out <- emptyDrops(counts(sce.pbmc))
+sce.pbmc <- sce.pbmc[,which(e.out$FDR <= 0.001)]
+
+#--- quality-control ---#
+stats <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=which(location=="MT")))
+high.mito <- isOutlier(stats$subsets_Mito_percent, type="higher")
+sce.pbmc <- sce.pbmc[,!high.mito]
+
+#--- normalization ---#
+library(scran)    # Version=1.31.0
+set.seed(1000)
+clusters <- quickCluster(sce.pbmc)
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clusters)
+sce.pbmc <- logNormCounts(sce.pbmc)
+
+## FOR DEMO PURPOSE WE'LL USE 10X PBMC DATASET CREATED AS ABOVE
+
+library(scran)
+
+# variance with respect to abundance across all genes
+dec.pbmc <- modelGeneVar(sce.pbmc)
+
+# select top 10% of HVGs
+chosen <- getTopHVGs(dec.pbmc, prop=0.1)
+
+# get the HVgenes
+str(chosen)
+
+# subset sce to retain only HVGs
+sce.pbmc.hvg <- sce.pbmc[chosen,]
+
+# dimensions of new sce
+dim(sce.pbmc.hvg)
+
+# storing full dataset in the above subsetted class
+altExp(sce.pbmc.hvg, "original") <- sce.pbmc
+
+# confirming the addition
+altExpNames(sce.pbmc.hvg)
+
+# no need for explicit subset_row= specification in downstream operations
+sce.pbmc.hvg <- runPCA(sce.pbmc.hvg)
+
+# recover original data
+sce.pbmc.original <- altExp(sce.pbmc.hvg, "original", withColData=TRUE)
+
+```
+
+--- TASK END

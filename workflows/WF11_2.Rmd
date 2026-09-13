@@ -1,0 +1,782 @@
+---
+title: "prompt/completion pairs chapter 11"
+author: "authors"
+date: "2023-10-30"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+i <- 1
+```
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 2, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 
+'gene_exp.txt'. This dataset contains information from 
+samples of 2 different cancer subgroups. Columns represent the samples, 
+and the rows represent the features. There is a seperate file 
+called 'subgroup.txt' which holds extra information of each sample. 
+Here, columns represent features and rows represent the different 
+samples. The column cms_label holds which sample belongs to which subgroup.
+How can I visualize a possible relationship between this gene 
+expression data and the 2 different subgroups in the column cms_label?
+
+completion:
+To visualize a possible relationship between your gene 
+expression data and the two different subgroups, you can 
+use various data visualization techniques. 
+One common method you could consider is plotting a heatmap 
+and looking at the clustering the cancer subgroups. Here is how:
+
+```{r,eval=FALSE}
+require (pheatmap)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[, 1]
+rownames(anno_dat) <- anno_dat[, 1]
+
+#delete column with rownames
+gene_exp <- gene_exp[,-1]
+anno_dat <- anno_dat [,-1]
+
+#ensure ordering is the same
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# create a dataframe which will be used to annotate later graph
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label))
+rownames(anno_col) <- rownames(anno_dat)
+
+#plotting heatmap
+pheatmap::pheatmap(as.matrix(gene_exp),
+                   annotation_col = anno_col,
+                   show_colnames = FALSE,
+                   show_rownames = FALSE,
+                   main="Gene expression data")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 
+'gene_exp.txt'. I also have data containing mutation status 
+of certain genes and copy number data. These files are called 
+'mut.txt' and 'cnv.txt' respectively. Columns represent the samples, 
+and the rows represent the features. There is a seperate file called 
+'subgroup.txt' which holds information of each sample. Here, columns 
+represent features and rows represent the different samples. 
+The column 'cms_label' holds which sample belongs to which subgroup.
+This dataset contains information from samples of 2 different cancer subgroups. 
+How do I combine these forms of data to perform MFA and visualize the results to 
+see if I can find seperation between different subgroups?
+
+completion:
+To perform MFA on these datasets and see if seperation can be found, 
+we will first read in the datasets. Then MFA is performed using the 
+'FactoMineR::MFA' function. MFA is a multivariate analysis method that 
+can handle data from different sources and analyze them collectively. 
+In your case, you have gene expression data, mutation status data and
+copy number data. To visualize the results and see if seperation 
+can be found between different subgroups, a heatmap will be plotted.
+Here is how to perform MFA and visualize your results:
+
+```{r,eval=FALSE}
+require(pheatmap)
+require(FactoMineR)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[, 1]
+rownames(mut) <- mut[, 1]
+rownames(cnv) <- cnv[, 1]
+rownames(anno_dat) <- anno_dat[, 1]
+
+#delete column with rownames
+gene_exp <- gene_exp[,-1]
+mut <- mut [,-1]
+cnv <- cnv[,-1]
+anno_dat <- anno_dat [,-1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# create a dataframe which will be used to annotate later graph
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label))
+rownames(anno_col) <- rownames(anno_dat)
+
+#perform MFA
+r.mfa <- FactoMineR::MFA(
+  t(rbind(gene_exp,mut,cnv)), # binding the omics types together
+  c(dim(gene_exp)[1], dim(mut)[1], dim(cnv)[1]), # specifying the dimensions of each
+  graph=FALSE)
+
+# first, extract the H matrix from the MFA run result
+mfa.h <- r.mfa$global.pca$ind$coord
+
+#plot heatmap with annotation
+pheatmap::pheatmap(t(mfa.h)[1:2, ], annotation_col = anno_col,
+                  show_colnames = FALSE,
+                  main="MFA for multi-omics integration")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: data wrangling | ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 'gene_exp.txt'. 
+I also have data containing mutation status of certain genes and copy 
+number data. These files are called 'mut.txt' and 'cnv.txt' respectively. 
+Columns represent the samples, and the rows represent the features.
+I also have another file holding information about the different samples
+called 'subgroup.txt'. Here, samples are represented by rows, and features
+are represented by columns. The column 'cms_label' holds the different cancer 
+subgroups each sample belongs to. I want to do joint NMF on these datasets with 
+2 components. I then want to visualize the results with a scatterplot to see if 
+there is a distinction that can be made between these my different cancer subgroups. 
+How do I do this?
+
+completion:
+To perform NMF on these datasets, you first need to read in the data using 
+`data.table::fread'. It is then ensured that the ordering of all samples 
+across the different datasets are the same. NMF is a dimensionality reduction 
+technique that can help identify patterns and sources of variation in multi-omics 
+datasets. In your case, you have gene expression data, mutation status data and 
+copy number data. To perform NMF you first need to  
+do a feature normalization on the data. You divide each value of the features
+by the mean of that feature across all samples. Then we normalize the data 
+by dividing all values using each omics type's frobenius norm. We then perform 
+NFM using the `NFM::nfm()` function. To visualize the results
+with a scatterplot we then make use of the `ggplot2:ggplot()` function
+
+```{r,eval=TRUE}
+require(NMF)
+require(ggplot2)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[, 1]
+rownames(mut) <- mut[, 1]
+rownames(cnv) <- cnv[, 1]
+rownames(anno_dat) <- anno_dat[, 1]
+
+#delete column with rownames
+gene_exp <- gene_exp[, -1]
+mut <- mut [, -1]
+cnv <- cnv[, -1]
+anno_dat <- anno_dat [, -1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# create a dataframe which will be used to annotate later graph
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label))
+rownames(anno_col) <- rownames(anno_dat)
+
+# Feature-normalize the data
+x1.featnorm <- gene_exp / rowSums(gene_exp)
+x2.featnorm <- mut / rowSums(mut)
+x3.featnorm <- cnv / rowSums(cnv)
+
+# Normalize by each omics type's frobenius norm
+x1.featnorm.frobnorm <- x1.featnorm / norm(as.matrix(x1.featnorm), type="F")
+x2.featnorm.frobnorm <- x2.featnorm / norm(as.matrix(x2.featnorm), type="F")
+x3.featnorm.frobnorm <- x3.featnorm / norm(as.matrix(x3.featnorm), type="F")
+
+#perform NMF
+r.nmf <- NMF::nmf(t(rbind(x1.featnorm.frobnorm, x2.featnorm.frobnorm,x3.featnorm.frobnorm)),rank=2, method='Frobenius')
+
+# exctract the H matrix from the nmf run result
+nmf.h <- NMF::basis(r.nmf)
+
+# create a dataframe with the H matrix and the CMS label (subtype)
+nmf_df <- as.data.frame(nmf.h,row.names=rownames(nmf.h))
+colnames(nmf_df) <- c("dim1", "dim2")
+nmf_df$subtype <- factor(anno_dat[rownames(nmf_df),]$cms_label)
+
+# create the scatter plot
+ggplot2::ggplot(nmf_df, ggplot2::aes(x=dim1, y=dim2, color=subtype)) +
+ggplot2::geom_point() +
+ggplot2::ggtitle("Scatter plot of 2-component NMF for multi-omics integration")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 'gene_exp.txt'. 
+I also have data containing mutation status of certain genes and copy 
+number data. These files are called 'mut.txt' and 'cnv.txt' respectively. 
+Columns represent the samples, and the rows represent the features. I also 
+have another file holding information about the different samples called 
+'subgroup.txt'. Here, samples are represented by rows, and features are 
+represented by columns. The column 'cms_label' holds the different cancer 
+subgroups each sample belongs to. 
+I want the mutation file to just hold 1 for when a feature is mutated, 
+and 0 if it is not, instead of a continuous value above zero when it is 
+mutated like now. Then I want to do the following:
+These different omic types are from different distributions, so to analyze 
+them I would like to perform iCluster+ analysis. The gene expression, mutation 
+status and copy number data are from a gaussian, binomial and multinomial 
+distribution respectively. I would like to learn 2 factors. I would then like to 
+take these results and visualize them as both a scatterplot and heatmap to see 
+if there is a distinction between cancer subgroups. How do I do this?
+
+completion:
+To work with these datasets, we first read in the data using 
+`data.table::fread'. We then ensure that the ordering of all 
+samples across the different datasets are the same.
+To change the values of the mutation dataset, so that mutated 
+genes are indicated by 1 and non-mutated genes are indicated by 0, 
+we overwrite all values in this matrix that are greater then 0, and 
+change these to 1. We then do the iClusterPlus analysis using the 
+`iClusterPlus::iClusterPlus`, providing the function with the specified 
+distributions and desired number of factors. We then extract the H matrix 
+from the resulting iClusterPlus object, and use this to plot a scatterplot 
+and heatmap.
+
+```{r,eval=FALSE}
+require(ggplot2)
+require(pheatmap)
+require(iClusterPlus)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[,1]
+rownames(mut) <- mut[,1]
+rownames(cnv) <- cnv[,1]
+rownames(anno_dat) <- anno_dat[,1]
+
+#delete column with rownames
+gene_exp <- gene_exp[,-1]
+mut <- mut [,-1]
+cnv <- cnv[,-1]
+anno_dat <- anno_dat [,-1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+#change mutation states to 0 or 1 instead of continuous value:
+mut[mut>0] <- 1
+
+# run the iClusterPlus function
+r.icluster <- iClusterPlus::iClusterPlus(
+  t(as.matrix(gene_exp)), # Providing each omics type
+  t(as.matrix(mut)),
+  t(as.matrix(cnv)),
+  type=c("gaussian", "binomial", "multinomial"), # Providing the distributions
+  K=2) #providing the amount of factors to learn
+
+#Extract H (z) matrix
+icluster.z <- r.icluster$meanZ
+rownames(icluster.z) <- rownames(anno_dat) # fix the row names
+
+# construct a dataframe with the H matrix (z) and the cancer subtypes
+# for later plotting
+icp_df <- as.data.frame(icluster.z)
+colnames(icp_df) <- c("dim1", "dim2")
+rownames(icp_df) <- colnames(gene_exp)
+icp_df$subtype <- factor(anno_dat[rownames(icp_df),]$cms_label)
+
+# create the scatter plot
+ggplot2::ggplot(icp_df, ggplot2::aes(x=dim1, y=dim2, color=subtype)) +
+ggplot2::geom_point() +
+ggplot2::ggtitle("Scatter plot of iCluster+ factors")
+
+# create the heatmap
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label))
+rownames(anno_col) <- rownames(anno_dat)
+
+pheatmap::pheatmap(t(icp_df[,1:2]),annotation_col=anno_col,show_colnames=FALSE, main="Heatmap of iCluster+ factors")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 'gene_exp.txt'. 
+I also have data containing mutation status of certain genes and copy number 
+data. These files are called 'mut.txt' and 'cnv.txt' respectively. Columns 
+represent the samples, and the rows represent the features. I also have another 
+file holding information about the different samples called 'subgroup.txt'. 
+Here, samples are represented by rows, and features are represented by
+columns. The column 'cms_label' holds two different cancer subgroups each 
+sample can belong to. I want to do joint NMF on these datasets with 2 components. 
+Then I want to cluster the samples based on which latent variable influences 
+it the most, and compare this to the actual cancer subgroups in the data. How do I do this?
+
+completion:
+To perform NMF on these datasets, we first read in the data using 
+`data.table::fread'. We then ensure that the ordering of all samples across 
+the different datasets are the same. To perform NMF we first do a feature 
+normalization on the data. We divide each value of the features by the mean 
+of that feature across all samples. Then we normalize the data by dividing all 
+values using each omics type's frobenius norm. We then perform NFM using the `NFM::nfm()` 
+function. Here we use `rank = 2` to ensure we learn 2 factors. We then extract the 
+H matrix from the results, and make our prediction based on which factor influences the 
+sample the most. Finally, we plot our heatmap with both annotations of the actual label, 
+and the predicted label. Note that here we don't cluster the rows or columns, but plot
+a heatmap ordered based on the predicted subgroups. 
+
+```{r,eval=FALSE}
+require(NMF)
+require(pheatmap)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)                               
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[, 1]
+rownames(mut) <- mut[, 1]
+rownames(cnv) <- cnv[, 1]
+rownames(anno_dat) <- anno_dat[, 1]
+
+#delete column with rownames
+gene_exp <- gene_exp[, -1]
+mut <- mut [, -1]
+cnv <- cnv[, -1]
+anno_dat <- anno_dat [, -1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# Feature-normalize the data
+x1.featnorm <- gene_exp / rowSums(gene_exp)
+x2.featnorm <- mut / rowSums(mut)
+x3.featnorm <- cnv / rowSums(cnv)
+
+# Normalize by each omics type's frobenius norm
+x1.featnorm.frobnorm <- x1.featnorm / norm(as.matrix(x1.featnorm), type="F")
+x2.featnorm.frobnorm <- x2.featnorm / norm(as.matrix(x2.featnorm), type="F")
+x3.featnorm.frobnorm <- x3.featnorm / norm(as.matrix(x3.featnorm), type="F")
+
+#perform NMF with rank of 2 to learn two factors
+r.nmf <- NMF::nmf(t(rbind(x1.featnorm.frobnorm, x2.featnorm.frobnorm,x3.featnorm.frobnorm)),rank=2, method='Frobenius')
+
+# exctract the H matrix from the nmf run result
+nmf.h <- NMF::basis(r.nmf)
+
+# create a dataframe with the H matrix and the CMS label (subtype)
+nmf_df <- as.data.frame(nmf.h,row.names=rownames(nmf.h))
+colnames(nmf_df) <- c("dim1", "dim2")
+nmf_df$subtype <- factor(anno_dat[rownames(nmf_df),]$cms_label)
+
+#create our predictions for which sample belongs to which group (arbitrarily named group 1 and 2) based on which factor influences it the most
+pred_anno <- max.col(nmf.h)
+
+# Create annotation column for later plotting
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label), predicted=as.factor(pred_anno))
+rownames(anno_col) <- rownames(anno_dat)
+
+#order dataframes in order of predicted subtype:
+nmf_df_ordered <- nmf_df[order(anno_col$predicted),1:2]
+anno_col <- anno_col[order(anno_col$predicted),]
+
+#plot heatmap with both predicted and actual annotations
+pheatmap::pheatmap(t(nmf_df_ordered),annotation_col=anno_col,show_colnames=FALSE, 
+                    main="Heatmap of NMF factors",cluster_cols=FALSE, cluster_rows=FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 
+'gene_exp.txt'. I also have data containing mutation status of 
+certain genes and copy number data. These files are called 'mut.txt' 
+and 'cnv.txt' respectively. Columns represent the samples, and the rows 
+represent the features. For the 'mut.txt' file, I would like al features 
+(genes) to have only a zero when it is not mutated, and a 1 if it is 
+mutated instead of a continuous value. I also have another file holding
+information about the different samples called 'subgroup.txt'. 
+Here, samples are represented by rows, and features are represented by
+columns. The column 'cms_label' holds two different cancer subgroups 
+each sample can belong to. I want to perform iClusterPlus analysis. 
+Since these different omic types are from different distributions, 
+I would like to take this into account when doing my analysis. 
+The gene expression, mutation status and copy number data are from a 
+gaussian, binomial and multinomial distribution respectively. 
+I would like to learn 2 factors, and subsequently use K-means clustering 
+to cluster the samples into two groups. 
+I then would like to visualize the results in a heatmap, which shows the
+predicted group, as well as the actual label. How do I do this?
+
+completion:
+To work with these datasets, we first read in the data using 
+`data.table::fread'. We then ensure that the ordering of all samples 
+across the different datasetsare the same. To change the values of 
+the mutation dataset, so that mutated genes are indicated by 1 
+and non-mutated genes are indicated by 0, we overwrite all values
+in this matrix that are greater then 0, and change these to 1. 
+We then do the iClusterPlus analysis using the `iClusterPlus::iClusterPlus`
+function. You can provide the function with the specified distributions and desired 
+number of factors. We then extract the H matrix from the resulting 
+iClusterPlus object, and perform k-means clustering with this using 
+the euclidian distance and 2 K. Finally, we plot our heatmap with 
+both annotations of the actual label, and the predicted label. 
+Note that here we don't cluster the rows or columns, but plot
+a heatmap ordered based on the predicted subgroups based on the Kmeans 
+clustering.  
+
+```{r,eval=FALSE}
+require(iClusterPlus)
+require(pheatmap)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)                               
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[, 1]
+rownames(mut) <- mut[, 1]
+rownames(cnv) <- cnv[, 1]
+rownames(anno_dat) <- anno_dat[, 1]
+
+#delete column with rownames
+gene_exp <- gene_exp[, -1]
+mut <- mut [, -1]
+cnv <- cnv[, -1]
+anno_dat <- anno_dat [, -1]
+
+#ensure ordering is the same
+mut <- mut[, colnames(gene_exp)]
+cnv <- cnv[, colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp), ]
+
+#change mutation states to 0 or 1 instead of continuous value:
+mut[mut > 0] <- 1
+
+# run the iClusterPlus function
+r.icluster <- iClusterPlus::iClusterPlus(
+      t(as.matrix(gene_exp)), # Providing each omics type
+      t(as.matrix(mut)),
+      t(as.matrix(cnv)),
+      type=c("gaussian", "binomial", "multinomial"), # Providing the distributions
+      K=2) #providing the amount of factors to learn
+
+#Extract the H (z) matrix
+icluster.z <- r.icluster$meanZ
+rownames(icluster.z) <- rownames(anno_dat) # fix the row names
+
+#perform K-means clustering on the H (z) matrix with
+#2 groups and extract the cluster labels. 
+icluster.clusters <- as.data.frame(kmeans(icluster.z, 2)$cluster)
+rownames(icluster.clusters) <- rownames(icluster.z)
+
+
+# construct a dataframe with the H matrix (z) and the
+# cancer subtypes and predictions for later plotting
+icp_df <- as.data.frame(icluster.z)
+colnames(icp_df) <- c("dim1", "dim2")
+rownames(icp_df) <- colnames(gene_exp)
+icp_df$subtype <- factor(anno_dat[rownames(icp_df), ]$cms_label)
+icp_df$predicted <- factor (icluster.clusters[rownames(icp_df), ])
+
+#order dataframe based on predicted label:
+#order dataframes in order of predicted subtype:
+icp_df <- icp_df [order(icp_df$predicted), ]
+
+#plot heatmap
+pheatmap::pheatmap(t(icp_df[, 1:2]), annotation_col = icp_df[, 3:4],
+                   show_colnames = FALSE,
+                   main = "Heatmap of iCluster+ factors",
+                   cluster_rows = FALSE, cluster_cols = FALSE)
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 
+'gene_exp.txt'. I also have data containing mutation status
+of certain genes and copy number data. These files are called 
+'mut.txt' and 'cnv.txt' respectively. Columns represent the 
+samples, and the rows represent the features.
+I also have another file holding information about the different
+samples called 'subgroup.txt'. Here, samples are represented by rows, 
+and features are represented by columns. The column 'cms_label' holds
+two different cancer subgroups each sample can belong to. 
+I want to do joint NMF on these datasets with 2 factors. I then want 
+to visualize the results with a heatmap to see if there is a distinction 
+that can be made between these my different cancer subgroups. 
+I also want to create a heatmap where there is an annotation of the rows
+to see from which source the information came (gene expression, mutation
+status or copy number variation). I then 
+want to interpret these learnt factors in a biological context by looking at
+enrichment in GO terms for the gene expression part,
+to see which features influence these factors the most. 
+How do I do this?
+
+completion:
+To perform NMF on these datasets, we first read in the data using 
+`data.table::fread'. We then ensure that the ordering of all samples 
+across the different datasets are the same. To perform NMF we first 
+do a feature normalization on the data. We divide each value of the 
+features by the mean of that feature across all samples. 
+Then we normalize the data by dividing all values using each omics 
+type's frobenius norm. We then perform NFM using the `NFM::nfm()` function. 
+Here we use `rank = 2` to ensure we learn 2 factors. We then visualize the 
+results using the `pheatmap::pheatmap` function. To interpret the learnt 
+factors in a biological context, we can look at how the different features 
+differ from eachother in the different factors. This we do by extracting the 
+W matrix and plotting a heatmap of this. 
+This however tells us only which features influence the factors, but don't 
+tell us anything about possible enrichments in biological processes. For this 
+we can use the `enrichR::enrichr` function together with the differentially 
+expressed genes. Then we can test if there is any enrichment in factors
+in biological processes using a hypergeometric test. We do this by selecting 
+those genes that have a higher weight in one factor compared to the other. 
+We can visualize these results in a table showing the enriched GO terms. 
+
+```{r,eval=TRUE}
+require(NMF)
+require(pheatmap)
+require(enrichR)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)                               
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[,1]
+rownames(mut) <- mut[,1]
+rownames(cnv) <- cnv[,1]
+rownames(anno_dat) <- anno_dat[,1]
+
+#delete column with rownames
+gene_exp <- gene_exp[,-1]
+mut <- mut [,-1]
+cnv <- cnv[,-1]
+anno_dat <- anno_dat [,-1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# Feature-normalize the data
+x1.featnorm <- gene_exp / rowSums(gene_exp)
+x2.featnorm <- mut / rowSums(mut)
+x3.featnorm <- cnv / rowSums(cnv)
+
+# Normalize by each omics type's frobenius norm
+x1.featnorm.frobnorm <- x1.featnorm / norm(as.matrix(x1.featnorm), type="F")
+x2.featnorm.frobnorm <- x2.featnorm / norm(as.matrix(x2.featnorm), type="F")
+x3.featnorm.frobnorm <- x3.featnorm / norm(as.matrix(x3.featnorm), type="F")
+
+#perform NMF with rank of 2 to learn two factors
+r.nmf <- NMF::nmf(t(rbind(x1.featnorm.frobnorm, x2.featnorm.frobnorm,x3.featnorm.frobnorm)),rank=2, method='Frobenius')
+
+# exctract the H and W matrices from the nmf run result
+nmf.h <- NMF::basis(r.nmf)
+nmf.w <- NMF::coef(r.nmf)
+nmfw <- t(nmf.w)
+
+# create a dataframe with the H matrix and the CMS label (subtype)
+nmf_df <- as.data.frame(nmf.h, row.names=rownames(nmf.h))
+colnames(nmf_df) <- c("dim1", "dim2")
+nmf_df$subtype <- factor(anno_dat[rownames(nmf_df),]$cms_label)
+
+# Create annotation column for later plotting
+anno_col <- data.frame(cms=as.factor(anno_dat$cms_label))
+rownames(anno_col) <- rownames(anno_dat)
+
+#plot heatmap with annotations
+pheatmap::pheatmap(t(nmf_df[,1:2]),annotation_col=anno_col,show_colnames=FALSE, 
+                    main="Heatmap NMF factors")
+
+#heatmap annotation of biological interpretation
+data_anno <- data.frame(
+  omics=c(rep('expression',dim(gene_exp)[1]),
+          rep('mut',dim(mut)[1]),
+          rep('cnv',dim(cnv)[1])))
+rownames(data_anno) <- rownames(nmfw)
+
+# generate the heat map
+pheatmap::pheatmap(nmfw,
+                   cluster_cols = FALSE,
+                   annotation_row = data_anno,
+                   main="NMF coefficients",
+                   clustering_distance_rows = "manhattan",
+                   fontsize_row = 1)
+
+# select genes associated preferentially with each factor
+# by their relative loading in the W matrix
+genes.factor.1 <- names(which(nmfw[1:dim(gene_exp)[1],1] > nmfw[1:dim(gene_exp)[1],2]))
+genes.factor.2 <- names(which(nmfw[1:dim(gene_exp)[1],1] < nmfw[1:dim(gene_exp)[1],2]))
+
+# call the enrichr function to find gene sets enriched
+# in each latent factor in the GO Biological Processes 2018 library
+go.factor.1 <- enrichR::enrichr(genes.factor.1,
+                                databases = c("GO_Biological_Process_2018")
+                                )$GO_Biological_Process_2018
+go.factor.2 <- enrichR::enrichr(genes.factor.2,
+                                databases = c("GO_Biological_Process_2018")
+                                )$GO_Biological_Process_2018
+
+#Plot enrichment table
+plotEnrich(go.factor.1, showTerms = 20, numChar = 40, y = "Count", orderBy = "P.value")
+plotEnrich(go.factor.2, showTerms = 20, numChar = 40, y = "Count", orderBy = "P.value")
+```
+
+--- TASK END
+
+### Task `r i`,`r i<-i+1` taskType: ML/Stats | visualization, numData: 4, seeData: no, openEnded: no, tags: merge
+
+prompt:
+I have a dataset containing gene expression data called 'gene_exp.txt'.
+I also have data containing mutation status of certain genes and copy 
+number data. These files are called 'mut.txt' and 'cnv.txt' respectively. 
+Columns represent the samples, and the rows represent the features.
+I also have another file holding information about the different samples 
+called 'subgroup.txt'. Here, samples are represented by rows, 
+and features are represented by columns. The column 'cms_label' holds two 
+different cancer subgroups each sample can belong to. There are also columns
+called 'gender' and 'msi' which also have two different subgroups.  I want 
+to do joint NMF on these datasets with 2 factors. I then want to see if any 
+of these factors are correlated to the different
+features like 'cancer subgroup', 'gender' or 'msi'. In other words, I want 
+to see if these factors are able to provide a split between these groups.
+
+completion:
+To perform NMF on these datasets, we first read in the data using 
+`data.table::fread'. We then ensure that the ordering of all samples 
+across the different datasets are the same. To perform NMF we first do 
+a feature normalization on the data. We divide each value of the features 
+by the mean of that feature across all samples. Then we normalize the 
+data by dividing all values using each omics type's frobenius norm. 
+We then perform NFM using the `NFM::nfm()` function. Here we use
+`rank = 2` to ensure we learn 2 factors. To see if any of the additional 
+features 'gender','msi' and 'cancer subtype' are correlated to the learnt factors,
+we can visualize their relationship using a boxplot, scatterplot or heatmap to see 
+if these factors are able to split up the groups. To calculate the correlation between
+a continuous variable such as our factor and these features, different 
+statistical tests such as the Point-Biserial Correlation can be performed. 
+Which test is appropriate will however depend on the distribution of your data. 
+For now, here is how you visualize the possible relationship using a boxplot, 
+heatmap and a scatterplot:
+
+```{r,eval=FALSE}
+require(pheatmap)
+require(NFM)
+require(ggplot2)
+
+#reading in data
+gene_exp <- data.table::fread("gene_exp.txt", header = TRUE, data.table=FALSE)
+mut <- data.table::fread("mut.txt", header = TRUE, data.table=FALSE)
+cnv <- data.table::fread("cnv.txt", header = TRUE, data.table=FALSE)
+anno_dat <- data.table::fread("subgroup.txt", header = TRUE, data.table=FALSE)
+
+#setting rownames
+rownames(gene_exp) <- gene_exp[,1]
+rownames(mut) <- mut[,1]
+rownames(cnv) <- cnv[,1]
+rownames(anno_dat) <- anno_dat[,1]
+
+#delete column with rownames
+gene_exp <- gene_exp[,-1]
+mut <- mut [,-1]
+cnv <- cnv[,-1]
+anno_dat <- anno_dat [,-1]
+
+#ensure ordering is the same
+mut <- mut[,colnames(gene_exp)]
+cnv <- cnv[,colnames(gene_exp)]
+anno_dat <- anno_dat[colnames(gene_exp),]
+
+# Feature-normalize the data
+x1.featnorm <- gene_exp / rowSums(gene_exp)
+x2.featnorm <- mut / rowSums(mut)
+x3.featnorm <- cnv / rowSums(cnv)
+
+# Normalize by each omics type's frobenius norm
+x1.featnorm.frobnorm <- x1.featnorm / norm(as.matrix(x1.featnorm), type="F")
+x2.featnorm.frobnorm <- x2.featnorm / norm(as.matrix(x2.featnorm), type="F")
+x3.featnorm.frobnorm <- x3.featnorm / norm(as.matrix(x3.featnorm), type="F")
+
+#perform NMF with rank of 2 to learn two factors
+require(NMF)
+r.nmf <- NMF::nmf(t(rbind(x1.featnorm.frobnorm,
+                  x2.featnorm.frobnorm,x3.featnorm.frobnorm)),
+                  rank=2, method="Frobenius")
+
+# exctract the H matrix from the nmf run result and create dataframe for plotting
+nmf_df <- as.data.frame(NMF::basis(r.nmf))
+colnames(nmf_df) <- c("dim1", "dim2")
+nmf_df$cms <- factor(anno_dat[rownames(nmf_df), ]$cms_label)
+nmf_df$gender <- factor(anno_dat[rownames(nmf_df), ]$gender)
+nmf_df$msi <- factor(anno_dat[rownames(nmf_df), ]$msi)
+
+#scatterplot annotating points by cms,gender or msi
+for (i in c(nmf_df$cms,nmf_df$gender,nmf_df$msi)){
+  ggplot2::ggplot(nmf_df, ggplot2::aes(x=dim1, y=dim2, color=i)) +
+  ggplot2::geom_point() +
+  ggplot2::ggtitle("Scatter plot of 2-component NMF for multi-omics integration")
+}
+
+#plot heatmap with annotations
+pheatmap::pheatmap(t(nmf_df[,1:2]),annotation_col=nmf_df[, 3:5],show_colnames=FALSE, 
+                    main="Heatmap NMF factors")
+
+#plot barplots exploring relationships of factor 1
+for (i in c("cms","gender","msi")){
+  plot <- ggplot2::ggplot(nmf_df, ggplot2::aes(x=eval(parse(text=i)), y=dim1, group=eval(parse(text=i)))) +
+            ggplot2::geom_boxplot() +
+            ggplot2::xlab(i) +
+            ggplot2::ggtitle(paste0("NMF factor 1 with ",i))
+  print (plot)
+}
+
+#plot barplots exploring relationships of factor 2
+for (i in c("cms","gender","msi")){
+  plot <- ggplot2::ggplot(nmf_df, ggplot2::aes(x=eval(parse(text=i)), y=dim2, group=eval(parse(text=i)))) +
+            ggplot2::geom_boxplot() +
+            ggplot2::xlab(i) +
+            ggplot2::ggtitle(paste0("NMF factor 2 with ",i))
+  print (plot)
+}
+```
+
+--- TASK END
